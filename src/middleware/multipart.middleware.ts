@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from "fastify";
-import { uploadToR2 } from "../utils/cloudflare-upload.js";
+import { uploadToR2 } from "../utils/cloudinary-upload.js";
 import { CFFolder, CF_ACCEPTED_TYPES } from "../config/cloudflare.js";
 
 export type UploadedFile = {

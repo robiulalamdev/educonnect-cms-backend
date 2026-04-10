@@ -1,5 +1,4 @@
 import bcrypt from "bcryptjs";
-import jwt, { SignOptions } from "jsonwebtoken";
 import { prisma } from "../../config/prisma.js";
 import { env } from "../../config/env.js";
 import {
@@ -10,11 +9,10 @@ import {
   AdminQueryInput,
 } from "./admin.schema.js";
 import { IAdminRole } from "./admin.types.js";
-import { uploadToR2, deleteFromR2 } from "../../utils/cloudflare-upload.js";
-import { CF_FOLDERS } from "../../config/cloudflare.js";
+import { EncryptJWT, jwtDecrypt } from "jose";
 
-const ACCESS_SECRET = env.ADMIN_JWT_ACCESS_SECRET;
-const REFRESH_SECRET = env.ADMIN_JWT_REFRESH_SECRET;
+const accessSecret = new TextEncoder().encode(env.ADMIN_JWT_ACCESS_SECRET);
+const refreshSecret = new TextEncoder().encode(env.ADMIN_JWT_REFRESH_SECRET);
 
 export type JwtPayload = {
   adminId: number;
@@ -22,20 +20,51 @@ export type JwtPayload = {
   role: IAdminRole;
 };
 
-export function generateAccessToken(payload: JwtPayload) {
-  return jwt.sign(payload, ACCESS_SECRET, {
-    expiresIn: env.ADMIN_JWT_ACCESS_EXPIRES,
-  } as SignOptions);
+export async function generateAccessToken(
+  payload: JwtPayload,
+): Promise<string> {
+  return new EncryptJWT({ ...payload })
+    .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
+    .setIssuedAt()
+    .setExpirationTime(env.ADMIN_JWT_ACCESS_EXPIRES)
+    .encrypt(accessSecret);
 }
 
-export function generateTokens(payload: JwtPayload) {
-  const accessToken = generateAccessToken(payload);
-
-  const refreshToken = jwt.sign(payload, REFRESH_SECRET, {
-    expiresIn: env.ADMIN_JWT_REFRESH_EXPIRES,
-  } as SignOptions);
+export async function generateTokens(
+  payload: JwtPayload,
+): Promise<{ accessToken: string; refreshToken: string }> {
+  const accessToken = await generateAccessToken(payload);
+  const refreshToken = await new EncryptJWT({ ...payload })
+    .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
+    .setIssuedAt()
+    .setExpirationTime(env.ADMIN_JWT_REFRESH_EXPIRES)
+    .encrypt(refreshSecret);
 
   return { accessToken, refreshToken };
+}
+
+export async function refreshAdminToken(refreshToken: string) {
+  let payload: JwtPayload;
+  try {
+    const { payload: decrypted } = await jwtDecrypt(
+      refreshToken,
+      refreshSecret,
+    );
+    payload = decrypted as unknown as JwtPayload;
+  } catch {
+    throw new Error("INVALID_REFRESH_TOKEN");
+  }
+
+  const admin = await prisma.admin.findUnique({
+    where: { id: payload.adminId },
+  });
+  if (!admin || !admin.isActive) throw new Error("INVALID_REFRESH_TOKEN");
+
+  return generateTokens({
+    adminId: admin.id,
+    email: admin.email,
+    role: admin.role as IAdminRole,
+  });
 }
 
 const safeAdminSelect = {
@@ -61,14 +90,14 @@ export async function registerAdmin(
   if (existing) throw new Error("EMAIL_TAKEN");
 
   let avatarUrl = input.avatarUrl;
-  if (avatarFile) {
-    const uploaded = await uploadToR2(
-      avatarFile.buffer,
-      avatarFile.mimetype,
-      CF_FOLDERS.ADMIN_AVATARS,
-    );
-    avatarUrl = uploaded.key;
-  }
+  // if (avatarFile) {
+  //   const uploaded = await uploadToR2(
+  //     avatarFile.buffer,
+  //     avatarFile.mimetype,
+  //     CF_FOLDERS.ADMIN_AVATARS,
+  //   );
+  //   avatarUrl = uploaded.key;
+  // }
 
   const passwordHash = await bcrypt.hash(input.password, 12);
 
@@ -112,26 +141,6 @@ export async function loginAdmin(input: LoginInput) {
     },
     tokens,
   };
-}
-
-export async function refreshAdminToken(refreshToken: string) {
-  let payload: JwtPayload;
-  try {
-    payload = jwt.verify(refreshToken, REFRESH_SECRET) as JwtPayload;
-  } catch {
-    throw new Error("INVALID_REFRESH_TOKEN");
-  }
-
-  const admin = await prisma.admin.findUnique({
-    where: { id: payload.adminId },
-  });
-  if (!admin || !admin.isActive) throw new Error("INVALID_REFRESH_TOKEN");
-
-  return generateTokens({
-    adminId: admin.id,
-    email: admin.email,
-    role: admin.role as IAdminRole,
-  });
 }
 
 // ── Profile ────────────────────────────────────────────────
@@ -231,18 +240,18 @@ export async function updateAdmin(
   }
 
   let avatarUrl = target.avatarUrl;
-  if (avatarFile) {
-    // Delete old avatar from R2 if it exists (it's stored as a key)
-    if (target.avatarUrl) {
-      await deleteFromR2(target.avatarUrl).catch(() => {});
-    }
-    const uploaded = await uploadToR2(
-      avatarFile.buffer,
-      avatarFile.mimetype,
-      CF_FOLDERS.ADMIN_AVATARS,
-    );
-    avatarUrl = uploaded.key;
-  }
+  // if (avatarFile) {
+  //   // Delete old avatar from R2 if it exists (it's stored as a key)
+  //   if (target.avatarUrl) {
+  //     await deleteFromCloudinary(target.avatarUrl).catch(() => {});
+  //   }
+  //   const uploaded = await uploadToR2(
+  //     avatarFile.buffer,
+  //     avatarFile.mimetype,
+  //     CF_FOLDERS.ADMIN_AVATARS,
+  //   );
+  //   avatarUrl = uploaded.key;
+  // }
 
   const data: any = { ...input };
   if (avatarUrl !== target.avatarUrl) {

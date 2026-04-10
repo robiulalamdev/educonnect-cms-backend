@@ -25,8 +25,8 @@ export function buildApp() {
 
   // Cookie plugin — required for setCookie / request.cookies
   app.register(cookie, {
-    secret: env.COOKIE_ACCESS_SECRET,
-    parseOptions: {},
+    secret: env.COOKIE_SECRET,
+    hook: "onRequest",
   });
 
   // Multipart for file uploads — 10MB limit

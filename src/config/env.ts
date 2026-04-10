@@ -18,10 +18,10 @@ const schema = {
   JWT_ACCESS_EXPIRES: "string", // e.g. '1d'
   JWT_REFRESH_EXPIRES: "string", // e.g. '30d'
 
+  COOKIE_SECRET: "string",
+
   COOKIE_ACCESS_NAME: "string",
   COOKIE_REFRESH_NAME: "string",
-  COOKIE_ACCESS_SECRET: "string",
-  COOKIE_REFRESH_SECRET: "string",
   COOKIE_ACCESS_MAX_AGE: "number", // Must be numeric in .env
   COOKIE_REFRESH_MAX_AGE: "number",
 
@@ -33,19 +33,23 @@ const schema = {
 
   ADMIN_COOKIE_ACCESS_NAME: "string",
   ADMIN_COOKIE_REFRESH_NAME: "string",
-  ADMIN_COOKIE_ACCESS_SECRET: "string",
-  ADMIN_COOKIE_REFRESH_SECRET: "string",
   ADMIN_COOKIE_ACCESS_MAX_AGE: "number",
   ADMIN_COOKIE_REFRESH_MAX_AGE: "number",
 
   ADMIN_PANEL_ORIGINS: "string",
 
   // CLOUDFLARE R2
-  CF_ACCOUNT_ID: "string",
-  CF_ACCESS_KEY_ID: "string",
-  CF_SECRET_ACCESS_KEY: "string",
-  CF_BUCKET_NAME: "string",
-  CF_PUBLIC_URL: "string",
+  // CF_ACCOUNT_ID: "string",
+  // CF_ACCESS_KEY_ID: "string",
+  // CF_SECRET_ACCESS_KEY: "string",
+  // CF_BUCKET_NAME: "string",
+  // CF_PUBLIC_URL: "string",
+
+  // CLOUDINARY
+  CLOUDINARY_ACCOUNT_ID: "string",
+  CLOUDINARY_CLOUD_NAME: "string",
+  CLOUDINARY_API_KEY: "string",
+  CLOUDINARY_API_SECRET: "string",
 } as const;
 
 // This will hold our final validated data

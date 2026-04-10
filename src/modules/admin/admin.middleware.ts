@@ -1,10 +1,14 @@
 import { FastifyRequest, FastifyReply } from "fastify";
-import jwt from "jsonwebtoken";
+import { jwtDecrypt } from "jose";
 import { env } from "../../config/env.js";
 import { IAdminRole } from "./admin.types.js";
 import { JwtPayload, generateAccessToken } from "./admin.service.js";
 
-// ✅ Fixed cookie options
+// Secret keys — must be 32+ chars in .env
+const accessSecret = new TextEncoder().encode(env.ADMIN_JWT_ACCESS_SECRET);
+const refreshSecret = new TextEncoder().encode(env.ADMIN_JWT_REFRESH_SECRET);
+
+// ✅ Same cookie options — removed secret/signed (handled globally by plugin)
 export const accessCookieOptions = {
   httpOnly: true,
   secure: env.NODE_ENV === "production",
@@ -12,6 +16,7 @@ export const accessCookieOptions = {
   path: "/",
   // domain: env.IS_PRODUCTION ? ".DOMAIN.com" : undefined,
   maxAge: env.ADMIN_COOKIE_ACCESS_MAX_AGE,
+  signed: true, // ✅ just this — plugin handles it globally
 };
 
 export const refreshCookieOptions = {
@@ -21,6 +26,7 @@ export const refreshCookieOptions = {
   path: "/",
   // domain: env.IS_PRODUCTION ? ".DOMAIN.com" : undefined,
   maxAge: env.ADMIN_COOKIE_REFRESH_MAX_AGE,
+  signed: true, // ✅ just this — plugin handles it globally
 };
 
 declare module "fastify" {
@@ -29,21 +35,38 @@ declare module "fastify" {
   }
 }
 
+// ── Jose JWE helpers ──────────────────────────
+async function decryptAccessToken(token: string): Promise<JwtPayload> {
+  const { payload } = await jwtDecrypt(token, accessSecret);
+  return payload as unknown as JwtPayload;
+}
+
+async function decryptRefreshToken(token: string): Promise<JwtPayload> {
+  const { payload } = await jwtDecrypt(token, refreshSecret);
+  return payload as unknown as JwtPayload;
+}
+
+// ── Read & unsign cookies ─────────────────────
+function getSignedCookie(req: FastifyRequest, name: string): string | null {
+  const raw = req.cookies?.[name];
+  if (!raw) return null;
+  const { valid, value } = req.unsignCookie(raw);
+  if (!valid || !value) return null; // tampered!
+  return value;
+}
+
 export async function verifyAdminToken(
   req: FastifyRequest,
   reply: FastifyReply,
 ) {
-  const accessToken = req.cookies?.[env.ADMIN_COOKIE_ACCESS_NAME];
-  const refreshToken = req.cookies?.[env.ADMIN_COOKIE_REFRESH_NAME];
+  const accessToken = getSignedCookie(req, env.ADMIN_COOKIE_ACCESS_NAME);
+  const refreshToken = getSignedCookie(req, env.ADMIN_COOKIE_REFRESH_NAME);
 
   // 1. Check if Access Token exists
   if (accessToken) {
     try {
       // Check its expired if exist and not expired then can move next
-      const decoded = jwt.verify(
-        accessToken,
-        env.ADMIN_JWT_ACCESS_SECRET,
-      ) as JwtPayload;
+      const decoded = await decryptAccessToken(accessToken);
       req.admin = decoded;
       return;
     } catch (err) {
@@ -51,14 +74,11 @@ export async function verifyAdminToken(
       if (refreshToken) {
         try {
           // Check refresh token valid and not expired
-          const decodedRefresh = jwt.verify(
-            refreshToken,
-            env.ADMIN_JWT_REFRESH_SECRET,
-          ) as JwtPayload;
+          const decodedRefresh = await decryptRefreshToken(refreshToken);
 
           // Decode data and generate access token newly (strip JWT meta fields)
           const { iat, exp, ...payloadData } = decodedRefresh as any;
-          const newAccessToken = generateAccessToken(payloadData);
+          const newAccessToken = await generateAccessToken(payloadData);
 
           // Set access token to cookie
           reply.setCookie(
@@ -94,14 +114,11 @@ export async function verifyAdminToken(
     if (refreshToken) {
       try {
         // Check refresh token valid and not expired
-        const decodedRefresh = jwt.verify(
-          refreshToken,
-          env.ADMIN_JWT_REFRESH_SECRET,
-        ) as JwtPayload;
+        const decodedRefresh = await decryptRefreshToken(refreshToken);
 
         // Decode data and generate access token newly
         const { iat, exp, ...payloadData } = decodedRefresh as any;
-        const newAccessToken = generateAccessToken(payloadData);
+        const newAccessToken = await generateAccessToken(payloadData);
 
         // Set access token to cookie
         reply.setCookie(
