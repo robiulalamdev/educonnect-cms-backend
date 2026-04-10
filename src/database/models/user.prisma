@@ -1,0 +1,152 @@
+// ============================================================
+// MODULE: user.prisma
+// Core user + role-specific profiles + guardian-student linking
+// ============================================================
+
+// Single unified users table for all roles
+model User {
+    id            String    @id @default(cuid())
+    role          UserRole
+    full_name     String
+    email         String    @unique
+    password      String // hashed
+    phone         String?
+    gender        Gender?
+    date_of_birth DateTime?
+    avatar_url    String?
+    bio           String?   @db.Text
+
+    // location
+    country      String?
+    city         String?
+    area         String?
+    address_line String?
+    latitude     Decimal? @db.Decimal(10, 7)
+    longitude    Decimal? @db.Decimal(10, 7)
+
+    // verification & status — intentionally separate fields
+    is_email_verified Boolean    @default(false)
+    email_verified_at DateTime?
+    status            UserStatus @default(PENDING_VERIFICATION)
+
+    // only relevant for TEACHER role — admin manually approves
+    is_approved Boolean @default(false)
+
+    created_at DateTime  @default(now())
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime? // soft delete
+
+    // role profiles
+    teacher_profile  TeacherProfile?
+    student_profile  StudentProfile?
+    guardian_profile GuardianProfile?
+
+    // subscription tier
+    subscription UserSubscription?
+
+    // relations
+    services          Service[]
+    posts             Post[]
+    following         Follow[]             @relation("follower")
+    followers         Follow[]             @relation("following")
+    chat_participants ChatParticipant[]
+    messages_sent     Message[]
+    read_receipts     MessageReadReceipt[]
+    notifications     Notification[]
+    reviews_given     Review[]
+    blocks_given      Block[]              @relation("blocker")
+    blocks_received   Block[]              @relation("blocked")
+    admin_notes       AdminNote[]
+    teacher_approval  TeacherApproval?
+
+    @@index([role])
+    @@index([status])
+    @@index([email])
+    @@index([latitude, longitude])
+    @@map("users")
+}
+
+// Extended info for teachers
+model TeacherProfile {
+    id               String   @id @default(cuid())
+    user_id          String   @unique
+    user             User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    tagline          String? // short headline shown on profile
+    experience_years Int?
+    qualifications   String?  @db.Text
+    achievements     String?  @db.Text
+    // cached aggregated from all services — updated via background job
+    average_rating   Decimal  @default(0) @db.Decimal(3, 2)
+    total_reviews    Int      @default(0)
+    created_at       DateTime @default(now())
+    updated_at       DateTime @updatedAt
+
+    @@map("teacher_profiles")
+}
+
+// Extended info for students
+model StudentProfile {
+    id                 String          @id @default(cuid())
+    user_id            String          @unique
+    user               User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    education_level_id String?
+    education_level    EducationLevel? @relation(fields: [education_level_id], references: [id])
+    institution_name   String?
+    roll_number        String?
+    created_at         DateTime        @default(now())
+    updated_at         DateTime        @updatedAt
+
+    enrollments       Enrollment[]
+    guardian_links    GuardianStudent[]
+    task_visibilities TaskVisibility[]
+    note_visibilities NoteVisibility[]
+
+    @@map("student_profiles")
+}
+
+// Extended info for guardians
+model GuardianProfile {
+    id         String   @id @default(cuid())
+    user_id    String   @unique
+    user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    occupation String?
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+
+    children GuardianStudent[]
+
+    @@map("guardian_profiles")
+}
+
+// Mutual-acceptance linking between guardian and student
+model GuardianStudent {
+    id                  String                @id @default(cuid())
+    guardian_profile_id String
+    guardian            GuardianProfile       @relation(fields: [guardian_profile_id], references: [id], onDelete: Cascade)
+    student_profile_id  String
+    student             StudentProfile        @relation(fields: [student_profile_id], references: [id], onDelete: Cascade)
+    status              GuardianStudentStatus @default(PENDING)
+    initiated_by        UserRole // GUARDIAN or STUDENT sent request
+    relation_label      String? // "Father", "Mother", "Uncle"
+    requested_at        DateTime              @default(now())
+    responded_at        DateTime?
+    created_at          DateTime              @default(now())
+
+    @@unique([guardian_profile_id, student_profile_id])
+    @@map("guardian_students")
+}
+
+// Freemium subscription tier per user
+model UserSubscription {
+    id         String           @id @default(cuid())
+    user_id    String           @unique
+    user       User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    tier       SubscriptionTier @default(FREE)
+    // FREE = 1 active service | PRO = 4 active services
+    started_at DateTime         @default(now())
+    expires_at DateTime? // null = free tier (no expiry)
+    created_at DateTime         @default(now())
+    updated_at DateTime         @updatedAt
+
+    @@map("user_subscriptions")
+}
