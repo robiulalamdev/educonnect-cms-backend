@@ -1,0 +1,113 @@
+// ============================================================
+// MODULE: batch-content.prisma
+// Attendance, tasks, daily notes, announcements
+// Visible to: enrolled students + their linked guardians
+// Blocked/suspended students cannot access any of this
+// ============================================================
+
+// Teacher marks attendance per student per class date
+model Attendance {
+    id                 String           @id @default(cuid())
+    batch_id           String
+    batch              Batch            @relation(fields: [batch_id], references: [id], onDelete: Cascade)
+    student_profile_id String
+    class_date         DateTime         @db.Date
+    status             AttendanceStatus @default(ABSENT)
+    note               String? // teacher's optional note on this student
+    marked_by_id       String // teacher user id
+    marked_at          DateTime         @default(now())
+    created_at         DateTime         @default(now())
+    updated_at         DateTime         @updatedAt
+
+    @@unique([batch_id, student_profile_id, class_date])
+    @@index([batch_id, class_date])
+    @@map("attendances")
+}
+
+// Teacher assigns tasks/homework to the batch
+// Visible to all active enrolled students and their guardians
+model Task {
+    id            String     @id @default(cuid())
+    batch_id      String
+    batch         Batch      @relation(fields: [batch_id], references: [id], onDelete: Cascade)
+    title         String
+    description   String?    @db.Text
+    due_date      DateTime?  @db.Date
+    class_date    DateTime?  @db.Date // which class this task was given in
+    status        TaskStatus @default(ACTIVE)
+    created_by_id String // teacher user id
+    created_at    DateTime   @default(now())
+    updated_at    DateTime   @updatedAt
+
+    visibilities TaskVisibility[]
+
+    @@index([batch_id])
+    @@index([due_date])
+    @@map("tasks")
+}
+
+// Controls which students can see a task
+// Auto-populated for all active enrollments when task is created
+// Blocked/suspended students are excluded
+model TaskVisibility {
+    id                 String         @id @default(cuid())
+    task_id            String
+    task               Task           @relation(fields: [task_id], references: [id], onDelete: Cascade)
+    student_profile_id String
+    student            StudentProfile @relation(fields: [student_profile_id], references: [id], onDelete: Cascade)
+    can_view           Boolean        @default(true)
+
+    @@unique([task_id, student_profile_id])
+    @@map("task_visibilities")
+}
+
+// Teacher writes class notes per date
+// "What was taught today" + "What's next class"
+// Visible to active enrolled students and their linked guardians
+model DailyNote {
+    id            String   @id @default(cuid())
+    batch_id      String
+    batch         Batch    @relation(fields: [batch_id], references: [id], onDelete: Cascade)
+    note_date     DateTime @db.Date
+    title         String?
+    content       String   @db.Text // what was covered
+    next_day_plan String?  @db.Text // what comes next class
+    created_by_id String // teacher user id
+    created_at    DateTime @default(now())
+    updated_at    DateTime @updatedAt
+
+    visibilities NoteVisibility[]
+
+    @@unique([batch_id, note_date])
+    @@index([batch_id])
+    @@map("daily_notes")
+}
+
+// Controls which students can see a daily note
+model NoteVisibility {
+    id                 String         @id @default(cuid())
+    note_id            String
+    note               DailyNote      @relation(fields: [note_id], references: [id], onDelete: Cascade)
+    student_profile_id String
+    student            StudentProfile @relation(fields: [student_profile_id], references: [id], onDelete: Cascade)
+    can_view           Boolean        @default(true)
+
+    @@unique([note_id, student_profile_id])
+    @@map("note_visibilities")
+}
+
+// Teacher broadcasts announcements to the batch
+// Separate from group chat — announcements are formal, pinnable, auditable
+model Announcement {
+    id            String   @id @default(cuid())
+    batch_id      String
+    batch         Batch    @relation(fields: [batch_id], references: [id], onDelete: Cascade)
+    title         String
+    body          String   @db.Text
+    created_by_id String // teacher user id
+    created_at    DateTime @default(now())
+    updated_at    DateTime @updatedAt
+
+    @@index([batch_id])
+    @@map("announcements")
+}

@@ -1,0 +1,231 @@
+// ============================================================
+// MODULE: enums.prisma
+// ============================================================
+
+// --- User & Auth ---
+
+enum UserRole {
+    TEACHER
+    STUDENT
+    GUARDIAN
+}
+
+enum UserStatus {
+    PENDING_VERIFICATION
+    ACTIVE
+    SUSPENDED
+    BANNED
+}
+
+enum Gender {
+    MALE
+    FEMALE
+    OTHER
+}
+
+// --- Admin ---
+
+enum AdminRole {
+    SUPER_ADMIN
+    ADMIN
+    MODERATOR
+}
+
+enum AdminStatus {
+    ACTIVE
+    INACTIVE
+}
+
+enum AuditAction {
+    USER_APPROVED
+    USER_SUSPENDED
+    USER_BANNED
+    POST_REMOVED
+    REVIEW_HIDDEN
+    SERVICE_CLOSED
+    ADMIN_CREATED
+    ADMIN_ROLE_CHANGED
+}
+
+// --- Service ---
+
+enum ServiceMode {
+    ONLINE
+    OFFLINE
+    HYBRID
+}
+
+enum ServiceFormat {
+    BATCH
+    INDIVIDUAL
+    HOME_PRIVATE
+}
+
+enum ServiceStatus {
+    DRAFT
+    ACTIVE
+    PAUSED
+    CLOSED
+}
+
+// --- Batch ---
+
+enum BatchStatus {
+    UPCOMING
+    ONGOING
+    COMPLETED
+    CANCELLED
+}
+
+enum DayOfWeek {
+    SUNDAY
+    MONDAY
+    TUESDAY
+    WEDNESDAY
+    THURSDAY
+    FRIDAY
+    SATURDAY
+}
+
+enum ScheduleOverrideType {
+    CANCELLED
+    EXTRA
+    HOLIDAY
+    RESCHEDULED
+}
+
+// --- Enrollment ---
+
+enum EnrollmentStatus {
+    PENDING
+    APPROVED
+    REJECTED
+    WAITLISTED
+    REMOVED
+    SUSPENDED
+    LEFT
+}
+
+// --- Payment ---
+
+enum PaymentStatus {
+    PENDING
+    APPROVED
+    REJECTED
+}
+
+enum PaymentMethod {
+    BKASH
+    NAGAD
+    ROCKET
+    BANK_TRANSFER
+    CASH
+    OTHER
+}
+
+// --- Posts ---
+
+enum PostType {
+    OFFERING // teacher promoting a service
+    SEEKING // student/guardian looking for teacher
+}
+
+enum PostStatus {
+    ACTIVE
+    CLOSED
+    DELETED
+}
+
+enum MediaType {
+    IMAGE
+    VIDEO
+    DOCUMENT
+}
+
+// --- Messaging ---
+
+enum ChatType {
+    DIRECT // 1-on-1 between any two users
+    BATCH_GROUP // auto-created per batch
+}
+
+enum MessageStatus {
+    SENT
+    DELIVERED
+    READ
+}
+
+// --- Engagement ---
+
+enum ReviewStatus {
+    VISIBLE
+    HIDDEN
+}
+
+enum AttendanceStatus {
+    PRESENT
+    ABSENT
+    LATE
+    EXCUSED
+}
+
+enum TaskStatus {
+    ACTIVE
+    COMPLETED
+    CANCELLED
+}
+
+// --- Notifications ---
+
+enum NotificationType {
+    ACCOUNT_APPROVED
+    ACCOUNT_SUSPENDED
+    JOIN_REQUEST_RECEIVED
+    JOIN_REQUEST_ACCEPTED
+    JOIN_REQUEST_REJECTED
+    PAYMENT_SUBMITTED
+    PAYMENT_APPROVED
+    PAYMENT_REJECTED
+    ENROLLMENT_SUSPENDED
+    ENROLLMENT_REMOVED
+    ENROLLMENT_WAITLISTED
+    NEW_ANNOUNCEMENT
+    NEW_TASK
+    NEW_DAILY_NOTE
+    NEW_MESSAGE
+    ATTENDANCE_MARKED
+    GUARDIAN_LINK_REQUEST
+    GUARDIAN_LINK_ACCEPTED
+    FOLLOW_NEW
+    CLASS_CANCELLED
+    CLASS_RESCHEDULED
+}
+
+enum NotificationChannel {
+    IN_APP
+    EMAIL
+}
+
+// --- Guardian ---
+
+enum GuardianStudentStatus {
+    PENDING
+    ACTIVE
+    REMOVED
+}
+
+// --- Invites ---
+
+enum TeacherInviteStatus {
+    PENDING
+    ACCEPTED
+    REJECTED
+}
+
+// --- Subscription ---
+
+enum SubscriptionTier {
+    FREE // 1 active service
+    BASIC // future
+    PRO // up to 4 active services
+}
