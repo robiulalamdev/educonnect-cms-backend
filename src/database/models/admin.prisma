@@ -1,0 +1,68 @@
+// ============================================================
+// MODULE: admin.prisma
+// Completely separate from user system
+// ============================================================
+
+model Admin {
+    id         String      @id @default(cuid())
+    full_name  String
+    email      String      @unique
+    password   String // hashed
+    role       AdminRole   @default(MODERATOR)
+    status     AdminStatus @default(ACTIVE)
+    avatar_url String?
+    last_login DateTime?
+    created_at DateTime    @default(now())
+    updated_at DateTime    @updatedAt
+
+    teacher_approvals TeacherApproval[]
+    admin_notes       AdminNote[]
+    audit_logs        AuditLog[]
+
+    @@map("admins")
+}
+
+// Records every admin action for accountability
+model AuditLog {
+    id          String      @id @default(cuid())
+    admin_id    String
+    admin       Admin       @relation(fields: [admin_id], references: [id])
+    action      AuditAction
+    target_type String // "user" | "post" | "service" | "review"
+    target_id   String
+    meta        Json? // extra context snapshot
+    created_at  DateTime    @default(now())
+
+    @@index([admin_id])
+    @@index([target_type, target_id])
+    @@index([created_at])
+    @@map("audit_logs")
+}
+
+// Admin manually reviews teacher registration
+model TeacherApproval {
+    id          String     @id @default(cuid())
+    user_id     String     @unique
+    user        User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    reviewed_by String?
+    admin       Admin?     @relation(fields: [reviewed_by], references: [id])
+    status      UserStatus
+    note        String?    @db.Text
+    reviewed_at DateTime?
+    created_at  DateTime   @default(now())
+
+    @@map("teacher_approvals")
+}
+
+// Admin internal notes on any user
+model AdminNote {
+    id         String   @id @default(cuid())
+    user_id    String
+    user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    admin_id   String
+    admin      Admin    @relation(fields: [admin_id], references: [id])
+    note       String   @db.Text
+    created_at DateTime @default(now())
+
+    @@map("admin_notes")
+}
