@@ -1,0 +1,236 @@
+// ============================================================
+// MODULE: service.prisma
+// Teacher services, batches, schedules, enrollment, payment
+// ============================================================
+
+model Service {
+    id          String        @id @default(cuid())
+    teacher_id  String
+    teacher     User          @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
+    title       String
+    slug        String        @unique
+    description String        @db.Text
+    format      ServiceFormat
+    mode        ServiceMode
+    status      ServiceStatus @default(DRAFT)
+
+    // location (offline / hybrid)
+    country      String?
+    city         String?
+    area         String?
+    address_line String?
+    latitude     Decimal? @db.Decimal(10, 7)
+    longitude    Decimal? @db.Decimal(10, 7)
+
+    // online info
+    meeting_platform String? // "Google Meet", "Zoom"
+    meeting_link     String?
+
+    // fees — all optional, teacher decides
+    joining_fee     Decimal? @db.Decimal(10, 2)
+    monthly_fee     Decimal? @db.Decimal(10, 2)
+    per_session_fee Decimal? @db.Decimal(10, 2)
+    currency        String   @default("BDT")
+    fee_note        String?  @db.Text
+
+    // cached aggregated rating
+    average_rating Decimal @default(0) @db.Decimal(3, 2)
+    total_reviews  Int     @default(0)
+
+    created_at DateTime  @default(now())
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime?
+
+    batches         Batch[]
+    subjects        ServiceSubject[]
+    levels          ServiceLevel[]
+    payment_methods ServicePaymentMethod[]
+    posts           Post[]
+    reviews         Review[]
+
+    @@index([teacher_id])
+    @@index([status])
+    @@index([format])
+    @@index([mode])
+    @@index([latitude, longitude])
+    @@map("services")
+}
+
+// Payment methods teacher accepts per service
+model ServicePaymentMethod {
+    id             String        @id @default(cuid())
+    service_id     String
+    service        Service       @relation(fields: [service_id], references: [id], onDelete: Cascade)
+    method         PaymentMethod
+    account_name   String?
+    account_number String?
+    instructions   String?       @db.Text
+
+    @@map("service_payment_methods")
+}
+
+// pivot: service ↔ subjects
+model ServiceSubject {
+    service_id String
+    service    Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
+    subject_id String
+    subject    Subject @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+
+    @@id([service_id, subject_id])
+    @@map("service_subjects")
+}
+
+// pivot: service ↔ education levels
+model ServiceLevel {
+    service_id String
+    service    Service        @relation(fields: [service_id], references: [id], onDelete: Cascade)
+    level_id   String
+    level      EducationLevel @relation(fields: [level_id], references: [id], onDelete: Cascade)
+
+    @@id([service_id, level_id])
+    @@map("service_levels")
+}
+
+// ---- Batch ----
+
+model Batch {
+    id          String      @id @default(cuid())
+    service_id  String
+    service     Service     @relation(fields: [service_id], references: [id], onDelete: Cascade)
+    name        String
+    description String?     @db.Text
+    status      BatchStatus @default(UPCOMING)
+
+    // slots — required, no unlimited batches
+    max_students     Int
+    enrolled_count   Int     @default(0) // cached, increment/decrement on enrollment change
+    waitlist_enabled Boolean @default(false)
+    waitlist_count   Int     @default(0)
+
+    start_date DateTime?
+    end_date   DateTime?
+
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+
+    schedule           BatchSchedule[]
+    schedule_overrides ScheduleOverride[]
+    enrollments        Enrollment[]
+    attendances        Attendance[]
+    tasks              Task[]
+    daily_notes        DailyNote[]
+    announcements      Announcement[]
+    group_chat         Chat?              @relation("batch_chat")
+
+    @@index([service_id])
+    @@index([status])
+    @@map("batches")
+}
+
+// Queryable weekly schedule — replaces unqueryable Json
+model BatchSchedule {
+    id         String    @id @default(cuid())
+    batch_id   String
+    batch      Batch     @relation(fields: [batch_id], references: [id], onDelete: Cascade)
+    day        DayOfWeek
+    start_time String // "17:00"
+    end_time   String // "18:00"
+    created_at DateTime  @default(now())
+
+    @@unique([batch_id, day])
+    @@map("batch_schedules")
+}
+
+// Per-date overrides: cancelled, extra class, holiday, rescheduled
+model ScheduleOverride {
+    id            String               @id @default(cuid())
+    batch_id      String
+    batch         Batch                @relation(fields: [batch_id], references: [id], onDelete: Cascade)
+    override_date DateTime             @db.Date
+    type          ScheduleOverrideType
+    reason        String?
+    new_start     String? // used when RESCHEDULED
+    new_end       String?
+    created_at    DateTime             @default(now())
+
+    @@index([batch_id, override_date])
+    @@map("schedule_overrides")
+}
+
+// ---- Enrollment ----
+
+model Enrollment {
+    id                 String           @id @default(cuid())
+    batch_id           String
+    batch              Batch            @relation(fields: [batch_id], references: [id], onDelete: Cascade)
+    student_profile_id String
+    student            StudentProfile   @relation(fields: [student_profile_id], references: [id], onDelete: Cascade)
+    status             EnrollmentStatus @default(PENDING)
+
+    // discipline fields
+    suspension_reason String?   @db.Text
+    suspension_until  DateTime? // null = indefinite suspension
+    removal_reason    String?   @db.Text
+
+    // waitlist
+    waitlist_position Int? // null if not waitlisted
+
+    invited_by_teacher Boolean   @default(false)
+    enrolled_at        DateTime?
+    created_at         DateTime  @default(now())
+    updated_at         DateTime  @updatedAt
+
+    payment_records PaymentRecord[]
+    review          Review? // one review per enrollment
+
+    @@unique([batch_id, student_profile_id])
+    @@index([status])
+    @@index([waitlist_position])
+    @@map("enrollments")
+}
+
+// ---- Payment ----
+
+model PaymentRecord {
+    id             String        @id @default(cuid())
+    enrollment_id  String
+    enrollment     Enrollment    @relation(fields: [enrollment_id], references: [id], onDelete: Cascade)
+    amount         Decimal       @db.Decimal(10, 2)
+    currency       String        @default("BDT")
+    method         PaymentMethod
+    transaction_id String? // bKash / Nagad reference
+    sender_name    String?
+    sender_number  String?
+    screenshot_url String? // payment proof
+    note           String?       @db.Text
+    payment_for    String? // "January 2025 fee" / "joining fee"
+    status         PaymentStatus @default(PENDING)
+    reviewed_by_id String? // teacher user id
+    rejection_note String?       @db.Text
+    reviewed_at    DateTime?
+
+    // gateway-ready fields for future direct payment
+    gateway_name        String?
+    gateway_transaction String?
+
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+
+    @@index([status])
+    @@map("payment_records")
+}
+
+// Teacher directly invites a student to a batch
+model TeacherInvite {
+    id                 String              @id @default(cuid())
+    batch_id           String
+    teacher_id         String
+    student_profile_id String
+    status             TeacherInviteStatus @default(PENDING)
+    note               String?
+    created_at         DateTime            @default(now())
+    responded_at       DateTime?
+
+    @@unique([batch_id, student_profile_id])
+    @@map("teacher_invites")
+}

@@ -1,0 +1,63 @@
+// ============================================================
+// MODULE: education.prisma
+// Admin-managed education levels and subjects
+// ============================================================
+
+// Groups: Primary, Secondary, Higher Secondary, University, Skills
+model EducationLevelGroup {
+    id         String   @id @default(cuid())
+    name       String   @unique
+    sort_order Int      @default(0)
+    is_active  Boolean  @default(true)
+    created_at DateTime @default(now())
+
+    levels EducationLevel[]
+
+    @@map("education_level_groups")
+}
+
+// Levels: Class 1–10, SSC, HSC, Undergraduate, IELTS, etc.
+model EducationLevel {
+    id         String              @id @default(cuid())
+    group_id   String
+    group      EducationLevelGroup @relation(fields: [group_id], references: [id])
+    name       String
+    sort_order Int                 @default(0)
+    is_active  Boolean             @default(true)
+    created_at DateTime            @default(now())
+
+    service_levels   ServiceLevel[]
+    student_profiles StudentProfile[]
+    post_levels      PostLevel[]
+
+    @@unique([group_id, name])
+    @@map("education_levels")
+}
+
+// Categories: Science, Arts, Languages, etc.
+model SubjectCategory {
+    id         String   @id @default(cuid())
+    name       String   @unique
+    is_active  Boolean  @default(true)
+    created_at DateTime @default(now())
+
+    subjects Subject[]
+
+    @@map("subject_categories")
+}
+
+// Subjects: Physics, Mathematics, English, etc.
+model Subject {
+    id          String          @id @default(cuid())
+    category_id String
+    category    SubjectCategory @relation(fields: [category_id], references: [id])
+    name        String
+    is_active   Boolean         @default(true)
+    created_at  DateTime        @default(now())
+
+    service_subjects ServiceSubject[]
+    post_subjects    PostSubject[]
+
+    @@unique([category_id, name])
+    @@map("subjects")
+}
