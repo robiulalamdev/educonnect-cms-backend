@@ -1,0 +1,34 @@
+// ============================================================
+// MODULE: social.prisma
+// Follow system + block system
+// ============================================================
+
+// Any user can follow any other user
+// Teacher profile: shows services
+// Student/Guardian profile: shows their posts only
+model Follow {
+    id           String   @id @default(cuid())
+    follower_id  String
+    follower     User     @relation("follower", fields: [follower_id], references: [id], onDelete: Cascade)
+    following_id String
+    following    User     @relation("following", fields: [following_id], references: [id], onDelete: Cascade)
+    created_at   DateTime @default(now())
+
+    @@unique([follower_id, following_id])
+    @@map("follows")
+}
+
+// Teacher blocks a student — student can't see teacher's
+// profile, services, or any batch content
+model Block {
+    id         String   @id @default(cuid())
+    blocker_id String
+    blocker    User     @relation("blocker", fields: [blocker_id], references: [id], onDelete: Cascade)
+    blocked_id String
+    blocked    User     @relation("blocked", fields: [blocked_id], references: [id], onDelete: Cascade)
+    reason     String?  @db.Text
+    created_at DateTime @default(now())
+
+    @@unique([blocker_id, blocked_id])
+    @@map("blocks")
+}

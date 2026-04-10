@@ -1,0 +1,85 @@
+// ============================================================
+// MODULE: messaging.prisma
+// DIRECT: 1-on-1, created once on first contact, never duplicated
+// BATCH_GROUP: auto-created when a batch is created
+// ============================================================
+
+model Chat {
+    id   String   @id @default(cuid())
+    type ChatType
+
+    // only set for BATCH_GROUP
+    batch_id String? @unique
+    batch    Batch?  @relation("batch_chat", fields: [batch_id], references: [id])
+
+    name       String? // group name for batch chats
+    avatar_url String?
+
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+
+    participants ChatParticipant[]
+    messages     Message[]
+
+    @@map("chats")
+}
+
+model ChatParticipant {
+    id        String    @id @default(cuid())
+    chat_id   String
+    chat      Chat      @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+    user_id   String
+    user      User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    joined_at DateTime  @default(now())
+    last_read DateTime? // used to calculate unread count
+    is_muted  Boolean   @default(false)
+
+    @@unique([chat_id, user_id])
+    @@map("chat_participants")
+}
+
+model Message {
+    id         String  @id @default(cuid())
+    chat_id    String
+    chat       Chat    @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+    sender_id  String
+    sender     User    @relation(fields: [sender_id], references: [id], onDelete: Cascade)
+    body       String? @db.Text
+    media_url  String?
+    media_type String? // "image" | "pdf" | "document"
+
+    // service context tag — user attaches a service to the conversation
+    // so both parties know what they are discussing
+    context_service_id String?
+
+    status     MessageStatus @default(SENT)
+    is_deleted Boolean       @default(false)
+
+    // reply threading
+    reply_to_id String?
+    reply_to    Message?  @relation("replies", fields: [reply_to_id], references: [id])
+    replies     Message[] @relation("replies")
+
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+
+    read_receipts MessageReadReceipt[]
+
+    @@index([chat_id])
+    @@index([sender_id])
+    @@index([created_at])
+    @@map("messages")
+}
+
+// Per-user read tracking — essential for group chats
+model MessageReadReceipt {
+    id         String   @id @default(cuid())
+    message_id String
+    message    Message  @relation(fields: [message_id], references: [id], onDelete: Cascade)
+    user_id    String
+    user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    read_at    DateTime @default(now())
+
+    @@unique([message_id, user_id])
+    @@map("message_read_receipts")
+}

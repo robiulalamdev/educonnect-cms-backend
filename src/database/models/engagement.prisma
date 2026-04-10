@@ -1,0 +1,69 @@
+// ============================================================
+// MODULE: engagement.prisma
+// Reviews, notifications, email queue
+// ============================================================
+
+// Students/guardians review a service after enrollment
+// Locked to real enrollment — no fake reviews
+model Review {
+    id                 String       @id @default(cuid())
+    service_id         String
+    service            Service      @relation(fields: [service_id], references: [id], onDelete: Cascade)
+    reviewer_id        String
+    reviewer           User         @relation(fields: [reviewer_id], references: [id], onDelete: Cascade)
+    enrollment_id      String       @unique
+    enrollment         Enrollment   @relation(fields: [enrollment_id], references: [id])
+    rating             Int // 1–5
+    comment            String?      @db.Text
+    status             ReviewStatus @default(VISIBLE)
+    teacher_reply      String?      @db.Text
+    teacher_replied_at DateTime?
+    created_at         DateTime     @default(now())
+    updated_at         DateTime     @updatedAt
+
+    @@unique([service_id, reviewer_id])
+    @@index([service_id])
+    @@map("reviews")
+}
+
+// All in-app and email notifications in one table
+model Notification {
+    id             String              @id @default(cuid())
+    user_id        String
+    user           User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    type           NotificationType
+    channel        NotificationChannel @default(IN_APP)
+    title          String
+    body           String              @db.Text
+    // polymorphic reference to what triggered the notification
+    reference_type String? // "enrollment" | "payment" | "task" | "note" | "announcement"
+    reference_id   String?
+    is_read        Boolean             @default(false)
+    read_at        DateTime?
+    email_sent     Boolean             @default(false)
+    email_sent_at  DateTime?
+    created_at     DateTime            @default(now())
+
+    @@index([user_id, is_read])
+    @@index([created_at])
+    @@map("notifications")
+}
+
+// Async email sending queue — processed by background worker
+model EmailQueue {
+    id           String    @id @default(cuid())
+    to_email     String
+    to_name      String?
+    subject      String
+    template     String // template key e.g. "payment_approved", "account_approved"
+    payload      Json // template variables
+    attempts     Int       @default(0)
+    max_attempts Int       @default(3)
+    sent         Boolean   @default(false)
+    sent_at      DateTime?
+    error        String?   @db.Text
+    created_at   DateTime  @default(now())
+
+    @@index([sent, attempts])
+    @@map("email_queue")
+}

@@ -1,0 +1,80 @@
+// ============================================================
+// MODULE: post.prisma
+// Public discovery posts: OFFERING (teacher) / SEEKING (student/guardian)
+// ============================================================
+
+model Post {
+    id        String     @id @default(cuid())
+    author_id String
+    author    User       @relation(fields: [author_id], references: [id], onDelete: Cascade)
+    type      PostType // OFFERING or SEEKING
+    title     String?
+    content   String     @db.Text
+    status    PostStatus @default(ACTIVE)
+
+    // OFFERING: teacher links their existing service (optional)
+    service_id String?
+    service    Service? @relation(fields: [service_id], references: [id])
+
+    // SEEKING: structured fields for better search
+    preferred_mode ServiceMode?
+    budget_min     Decimal?     @db.Decimal(10, 2)
+    budget_max     Decimal?     @db.Decimal(10, 2)
+    currency       String?      @default("BDT")
+
+    // location
+    country   String?
+    city      String?
+    area      String?
+    latitude  Decimal? @db.Decimal(10, 7)
+    longitude Decimal? @db.Decimal(10, 7)
+
+    created_at DateTime  @default(now())
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime?
+
+    subjects PostSubject[]
+    levels   PostLevel[]
+    media    PostMedia[]
+
+    @@index([author_id])
+    @@index([type])
+    @@index([status])
+    @@index([latitude, longitude])
+    @@map("posts")
+}
+
+// pivot: post ↔ subjects
+model PostSubject {
+    post_id    String
+    post       Post    @relation(fields: [post_id], references: [id], onDelete: Cascade)
+    subject_id String
+    subject    Subject @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+
+    @@id([post_id, subject_id])
+    @@map("post_subjects")
+}
+
+// pivot: post ↔ education levels
+model PostLevel {
+    post_id  String
+    post     Post           @relation(fields: [post_id], references: [id], onDelete: Cascade)
+    level_id String
+    level    EducationLevel @relation(fields: [level_id], references: [id], onDelete: Cascade)
+
+    @@id([post_id, level_id])
+    @@map("post_levels")
+}
+
+// Media attachments on posts (images, documents)
+model PostMedia {
+    id         String    @id @default(cuid())
+    post_id    String
+    post       Post      @relation(fields: [post_id], references: [id], onDelete: Cascade)
+    url        String
+    type       MediaType @default(IMAGE)
+    sort_order Int       @default(0)
+    created_at DateTime  @default(now())
+
+    @@map("post_media")
+}
