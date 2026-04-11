@@ -45,6 +45,12 @@ enum AuditAction {
     SERVICE_CLOSED
     ADMIN_CREATED
     ADMIN_ROLE_CHANGED
+
+    PACKAGE_CREATED
+    PACKAGE_UPDATED
+    PACKAGE_ARCHIVED
+    SUBSCRIPTION_GRANTED // admin manually grants a subscription
+    SUBSCRIPTION_REVOKED
 }
 
 // --- Service ---
@@ -224,8 +230,21 @@ enum TeacherInviteStatus {
 
 // --- Subscription ---
 
-enum SubscriptionTier {
-    FREE // 1 active service
-    BASIC // future
-    PRO // up to 4 active services
+enum SubscriptionStatus {
+    ACTIVE
+    EXPIRED
+    CANCELLED
+}
+
+enum PackageStatus {
+    ACTIVE
+    INACTIVE
+    ARCHIVED // old packages — users who had it keep access, no new purchases
+}
+
+enum BillingCycle {
+    MONTHLY
+    QUARTERLY
+    YEARLY
+    LIFETIME
 }

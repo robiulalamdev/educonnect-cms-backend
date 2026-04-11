@@ -42,7 +42,8 @@ model User {
     guardian_profile GuardianProfile?
 
     // subscription tier
-    subscription UserSubscription?
+    subscription         UserSubscription?
+    subscription_history SubscriptionHistory[]
 
     // relations
     services          Service[]
@@ -136,17 +137,34 @@ model GuardianStudent {
     @@map("guardian_students")
 }
 
-// Freemium subscription tier per user
+// Active subscription of a user — linked to a Package
 model UserSubscription {
-    id         String           @id @default(cuid())
-    user_id    String           @unique
-    user       User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
-    tier       SubscriptionTier @default(FREE)
-    // FREE = 1 active service | PRO = 4 active services
-    started_at DateTime         @default(now())
-    expires_at DateTime? // null = free tier (no expiry)
-    created_at DateTime         @default(now())
-    updated_at DateTime         @updatedAt
+    id      String @id @default(cuid())
+    user_id String @unique
+    user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+    package_id String
+    package    SubscriptionPackage @relation(fields: [package_id], references: [id])
+
+    status        SubscriptionStatus @default(ACTIVE)
+    billing_cycle BillingCycle
+
+    // actual dates
+    started_at DateTime  @default(now())
+    expires_at DateTime? // null = LIFETIME
+
+    // payment reference (manual for now, gateway-ready)
+    payment_method PaymentMethod?
+    transaction_id String?
+    amount_paid    Decimal?       @db.Decimal(10, 2)
+    currency       String         @default("BDT")
+
+    // gateway-ready
+    gateway_name        String?
+    gateway_transaction String?
+
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
 
     @@map("user_subscriptions")
 }

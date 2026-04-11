@@ -1,0 +1,95 @@
+// ============================================================
+// MODULE: subscription.prisma
+// Admin-managed dynamic subscription packages
+// Users (teachers) purchase packages for higher service limits
+// ============================================================
+
+// Admin creates and manages packages dynamically
+model SubscriptionPackage {
+    id          String        @id @default(cuid())
+    name        String // "Free", "Basic", "Pro", "Elite"
+    slug        String        @unique // "free", "basic", "pro"
+    description String?       @db.Text
+    status      PackageStatus @default(ACTIVE)
+
+    // pricing per billing cycle
+    price_monthly   Decimal? @db.Decimal(10, 2) // null = not available monthly
+    price_quarterly Decimal? @db.Decimal(10, 2)
+    price_yearly    Decimal? @db.Decimal(10, 2)
+    price_lifetime  Decimal? @db.Decimal(10, 2)
+    currency        String   @default("BDT")
+
+    // limits — what this package allows
+    max_services            Int  @default(1) // how many active services
+    max_batches_per_service Int  @default(3) // batches per service
+    max_students_per_batch  Int? // null = no platform limit
+
+    // feature flags — for future gating
+    can_use_online    Boolean @default(true)
+    can_use_offline   Boolean @default(true)
+    can_use_analytics Boolean @default(false)
+    can_export_data   Boolean @default(false)
+
+    // display
+    is_featured Boolean @default(false) // highlight on pricing page
+    sort_order  Int     @default(0)
+    badge_label String? // "Most Popular", "Best Value"
+
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+
+    subscriptions         UserSubscription[]
+    features              PackageFeature[] // dynamic feature list for UI display
+    subscriptionHistories SubscriptionHistory[]
+
+    @@map("subscription_packages")
+}
+
+// Dynamic feature bullets shown on pricing page
+// Admin can add/edit/remove without code changes
+model PackageFeature {
+    id          String              @id @default(cuid())
+    package_id  String
+    package     SubscriptionPackage @relation(fields: [package_id], references: [id], onDelete: Cascade)
+    label       String // "Up to 4 active services"
+    is_included Boolean             @default(true) // false = shown as ✗
+    sort_order  Int                 @default(0)
+    created_at  DateTime            @default(now())
+
+    @@map("package_features")
+}
+
+// Full history of all subscription purchases per user
+// UserSubscription = current active only
+// SubscriptionHistory = all time log
+model SubscriptionHistory {
+    id      String @id @default(cuid())
+    user_id String
+    user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+    package_id String
+    package    SubscriptionPackage @relation(fields: [package_id], references: [id])
+
+    status        SubscriptionStatus
+    billing_cycle BillingCycle
+    started_at    DateTime
+    expires_at    DateTime?
+
+    amount_paid    Decimal?       @db.Decimal(10, 2)
+    currency       String         @default("BDT")
+    payment_method PaymentMethod?
+    transaction_id String?
+
+    gateway_name        String?
+    gateway_transaction String?
+
+    // snapshot of package limits at time of purchase
+    // in case package is edited later, history stays accurate
+    snapshot Json
+
+    created_at DateTime @default(now())
+
+    @@index([user_id])
+    @@index([package_id])
+    @@map("subscription_histories")
+}
