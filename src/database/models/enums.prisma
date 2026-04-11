@@ -153,6 +153,9 @@ enum MediaOwnerType {
     TEACHER
     STUDENT
     GUARDIAN
+    POST
+    MESSAGE
+    PAYMENT_RECORD
 }
 
 // --- Messaging ---

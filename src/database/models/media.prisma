@@ -1,25 +1,38 @@
 model Media {
-    id        String    @id @default(cuid())
-    url       String? // public URL to access the media
-    key       String    @unique // storage bucket key (e.g. S3 key)
-    mime_type String // "image/jpeg", "application/pdf"
-    size      Int // bytes
-    type      MediaType
-    alt_text  String?
+    id               String         @id @default(cuid())
+    url              String
+    key              String         @unique
+    filename         String
+    mime_type        String
+    size             Int
+    type             MediaType
+    width            Int?
+    height           Int?
+    duration         Int?
+    alt_text         String?
+    owner_type       MediaOwnerType
+    owner_id         String?
+    uploaded_by_id   String?
+    uploaded_by_type String?
+    sort_order       Int?
+    created_at       DateTime       @default(now())
 
-    width  Int? // for images/videos
-    height Int? // for images/videos
+    // one-to-one back-relations (FK lives on their side)
+    admin_avatar       Admin?
+    chat_avatar        Chat?
+    payment_screenshot PaymentRecord?
+    user_avatar        User?
 
-    // Polymorphic ownership
-    owner_type MediaOwnerType?
-    owner_id   String?
+    // one-to-many FK (Media belongs to Post or Message)
+    post_id    String?
+    post       Post?    @relation("PostMedia", fields: [post_id], references: [id], onDelete: Cascade)
+    message_id String?
+    message    Message? @relation("MessageMedia", fields: [message_id], references: [id], onDelete: Cascade)
 
-    // Relations
-    admins Admin[]
-
-    uploaded_by String? // Admin/user who uploaded
-    created_at  DateTime @default(now())
-
-    @@index([owner_type, owner_id]) // critical for lookup performance
+    @@index([owner_type, owner_id])
+    @@index([post_id])
+    @@index([message_id])
+    @@index([key])
+    @@index([created_at])
     @@map("media")
 }

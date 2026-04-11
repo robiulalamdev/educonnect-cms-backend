@@ -13,7 +13,8 @@ model User {
     phone         String?
     gender        Gender?
     date_of_birth DateTime?
-    avatar_url    String?
+    avatar_id     String?   @unique // replaces avatar_url
+    avatar        Media?    @relation(fields: [avatar_id], references: [id])
     bio           String?   @db.Text
 
     // location

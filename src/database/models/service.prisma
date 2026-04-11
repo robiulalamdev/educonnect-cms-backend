@@ -201,7 +201,9 @@ model PaymentRecord {
     transaction_id String? // bKash / Nagad reference
     sender_name    String?
     sender_number  String?
-    screenshot_url String? // payment proof
+    screenshot_id  String?       @unique // replaces screenshot_url
+    screenshot     Media?        @relation(fields: [screenshot_id], references: [id])
+
     note           String?       @db.Text
     payment_for    String? // "January 2025 fee" / "joining fee"
     status         PaymentStatus @default(PENDING)

@@ -12,8 +12,9 @@ model Chat {
     batch_id String? @unique
     batch    Batch?  @relation("batch_chat", fields: [batch_id], references: [id])
 
-    name       String? // group name for batch chats
-    avatar_url String?
+    name      String? // group name for batch chats
+    avatar_id String? @unique // replaces avatar_url
+    avatar    Media?  @relation(fields: [avatar_id], references: [id])
 
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt
@@ -39,14 +40,13 @@ model ChatParticipant {
 }
 
 model Message {
-    id         String  @id @default(cuid())
-    chat_id    String
-    chat       Chat    @relation(fields: [chat_id], references: [id], onDelete: Cascade)
-    sender_id  String
-    sender     User    @relation(fields: [sender_id], references: [id], onDelete: Cascade)
-    body       String? @db.Text
-    media_url  String?
-    media_type String? // "image" | "pdf" | "document"
+    id        String  @id @default(cuid())
+    chat_id   String
+    chat      Chat    @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+    sender_id String
+    sender    User    @relation(fields: [sender_id], references: [id], onDelete: Cascade)
+    body      String? @db.Text
+    media     Media[] @relation("MessageMedia")
 
     // service context tag — user attaches a service to the conversation
     // so both parties know what they are discussing

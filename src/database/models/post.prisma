@@ -35,7 +35,7 @@ model Post {
 
     subjects PostSubject[]
     levels   PostLevel[]
-    media    PostMedia[]
+    media    Media[]       @relation("PostMedia")
 
     @@index([author_id])
     @@index([type])
@@ -64,17 +64,4 @@ model PostLevel {
 
     @@id([post_id, level_id])
     @@map("post_levels")
-}
-
-// Media attachments on posts (images, documents)
-model PostMedia {
-    id         String    @id @default(cuid())
-    post_id    String
-    post       Post      @relation(fields: [post_id], references: [id], onDelete: Cascade)
-    url        String
-    type       MediaType @default(IMAGE)
-    sort_order Int       @default(0)
-    created_at DateTime  @default(now())
-
-    @@map("post_media")
 }
