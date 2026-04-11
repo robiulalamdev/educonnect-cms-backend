@@ -283,7 +283,7 @@ export async function getController(req: FastifyRequest, reply: FastifyReply) {
 #### ADMIN SYSTEM (separate from users)
 
 ```
-Admin          — id, full_name, email, password, role(AdminRole), status(AdminStatus), avatar_url, last_login
+Admin          — id, full_name, email, password, role(AdminRole), status(AdminStatus), avatar_id (relation with Media model), last_login
 AuditLog       — id, admin_id, action(AuditAction), target_type, target_id, meta(Json)
 TeacherApproval — id, user_id, reviewed_by(admin_id), status, note, reviewed_at
 AdminNote      — id, user_id, admin_id, note
@@ -293,7 +293,7 @@ AdminNote      — id, user_id, admin_id, note
 
 ```
 User           — id, role(UserRole), full_name, email, password, phone, gender, dob,
-                 avatar_url, bio, country, city, area, address_line, lat, lng,
+                 avatar_id (relation with Media model), bio, country, city, area, address_line, lat, lng,
                  is_email_verified, email_verified_at, status(UserStatus), is_approved,
                  deleted_at
 TeacherProfile — id, user_id(unique), tagline, experience_years, qualifications,
@@ -343,7 +343,7 @@ Enrollment     — id, batch_id, student_profile_id, status(EnrollmentStatus),
                  waitlist_position, invited_by_teacher, enrolled_at
                  UNIQUE: [batch_id, student_profile_id]
 PaymentRecord  — id, enrollment_id, amount, currency, method, transaction_id,
-                 sender_name, sender_number, screenshot_url, note, payment_for,
+                 sender_name, sender_number, screenshot_id (relation with Media model), note, payment_for,
                  status(PaymentStatus), reviewed_by_id, rejection_note, reviewed_at,
                  gateway_name, gateway_transaction
 TeacherInvite  — id, batch_id, teacher_id, student_profile_id, status, note
@@ -374,7 +374,8 @@ Post           — id, author_id, type(PostType), title, content, status(PostSta
                  currency, location fields, deleted_at
 PostSubject    — post_id + subject_id (composite PK)
 PostLevel      — post_id + level_id (composite PK)
-PostMedia      — id, post_id, url, type(MediaType), sort_order
+<!-- PostMedia      — id, post_id, url, type(MediaType), sort_order --> not using now using Media that relation with Media model
+Media          - relatione with Media Model
 ```
 
 #### SOCIAL
@@ -390,7 +391,7 @@ Block          — id, blocker_id, blocked_id     UNIQUE: [blocker_id, blocked_i
 Chat           — id, type(ChatType), batch_id(unique, for group), name, avatar_url
 ChatParticipant — id, chat_id, user_id, joined_at, last_read, is_muted
                   UNIQUE: [chat_id, user_id]
-Message        — id, chat_id, sender_id, body, media_url, media_type,
+Message        — id, chat_id, sender_id, body,  media -> Media[] @relation("MessageMedia"),
                  context_service_id, status, is_deleted, reply_to_id
 MessageReadReceipt — id, message_id, user_id, read_at
                      UNIQUE: [message_id, user_id]
@@ -983,6 +984,9 @@ export async function xRoutes(fastify: FastifyInstance) {
   fastify.post("/", { preHandler: [verifyUserToken, requireUserRole("TEACHER")] }, createXController);
 }
 ```
+
+NOTE: i have added Media model for all File like: image, pdf etc we will store here and i connected with others model if any missing or wrong please fix and use this Model that i want
+one more thing is: must need most secure and production way most optimize way
 
 ---
 
