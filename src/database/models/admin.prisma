@@ -4,16 +4,18 @@
 // ============================================================
 
 model Admin {
-    id         String      @id @default(cuid())
-    full_name  String
-    email      String      @unique
-    password   String // hashed
-    role       AdminRole   @default(MODERATOR)
-    status     AdminStatus @default(ACTIVE)
-    avatar_url String?
+    id        String      @id @default(cuid())
+    full_name String
+    email     String      @unique
+    password  String // hashed
+    role      AdminRole   @default(MODERATOR)
+    status    AdminStatus @default(ACTIVE)
+    avatar_id String? // FK to Media
+    avatar    Media?      @relation(fields: [avatar_id], references: [id])
+
     last_login DateTime?
-    created_at DateTime    @default(now())
-    updated_at DateTime    @updatedAt
+    created_at DateTime  @default(now())
+    updated_at DateTime  @updatedAt
 
     teacher_approvals TeacherApproval[]
     admin_notes       AdminNote[]

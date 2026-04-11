@@ -767,8 +767,8 @@ DELETE /api/v1/admin/dashboard/admins/:id 🔒 CAN_DELETE_ADMIN
 Key service functions:
 
 - `loginAdmin(input)` → `{ admin, tokens }`
-- `generateTokens(payload)` → `{ accessToken, refreshToken }`
-- `generateAccessToken(payload)` → `string`
+- `generateAdminTokens(payload)` → `{ accessToken, refreshToken }`
+- `generateAdminAccessToken(payload)` → `string`
 - `refreshAdminToken(token)` → `{ accessToken, refreshToken }`
 - `getAdminProfile(adminId)` → admin
 - `updateOwnProfile(adminId, input, avatarFile?)` → admin

@@ -26,14 +26,14 @@ const refreshSecret = new TextEncoder().encode(env.ADMIN_JWT_REFRESH_SECRET);
 // ── JWT Payload ────────────────────────────────────────────
 
 export type JwtPayload = {
-  adminId: string; // cuid string — was number before
+  adminId: string;
   email: string;
   role: IAdminRole;
 };
 
 // ── Token Generators ───────────────────────────────────────
 
-export async function generateAccessToken(
+export async function generateAdminAccessToken(
   payload: JwtPayload,
 ): Promise<string> {
   return new EncryptJWT({ ...payload })
@@ -43,7 +43,7 @@ export async function generateAccessToken(
     .encrypt(accessSecret);
 }
 
-export async function generateTokens(
+export async function generateAdminTokens(
   payload: JwtPayload,
 ): Promise<{ accessToken: string; refreshToken: string }> {
   const [accessToken, refreshToken] = await Promise.all([
@@ -84,7 +84,7 @@ export async function refreshAdminToken(refreshToken: string) {
     throw new Error("INVALID_REFRESH_TOKEN");
   }
 
-  return generateTokens({
+  return generateAdminTokens({
     adminId: admin.id,
     email: admin.email,
     role: admin.role as IAdminRole,
@@ -99,11 +99,71 @@ const safeAdminSelect = {
   email: true,
   role: true,
   status: true,
-  avatar_url: true,
   last_login: true,
   created_at: true,
   updated_at: true,
+  avatar: {
+    select: {
+      id: true,
+      url: true,
+      key: true, // public_id — used for Cloudinary delete/replace
+      mime_type: true,
+      size: true,
+    },
+  },
 } as const;
+
+// ── Avatar helper — upload and create Media record ────────
+
+async function uploadAvatar(
+  adminId: string,
+  avatarFile: UploadInput,
+  existingAvatar?: { id: string; key: string; mime_type: string } | null,
+) {
+  if (existingAvatar) {
+    // upload new → delete old from Cloudinary
+    const result = await replaceInCloudinary(
+      existingAvatar.key,
+      existingAvatar.mime_type,
+      avatarFile,
+    );
+
+    // update existing Media record in place
+    await prisma.media.update({
+      where: { id: existingAvatar.id },
+      data: {
+        url: result.url,
+        key: result.public_id,
+        mime_type: result.mimetype,
+        size: result.size,
+      },
+    });
+
+    // avatar_id stays the same — no need to update Admin row
+    return;
+  }
+
+  // no existing avatar — upload and create new Media record
+  const result = await uploadToCloudinary(avatarFile);
+
+  const media = await prisma.media.create({
+    data: {
+      url: result.url,
+      key: result.public_id,
+      mime_type: result.mimetype,
+      size: result.size,
+      type: "IMAGE",
+      owner_type: "ADMIN",
+      owner_id: adminId,
+    },
+  });
+
+  // link Media to Admin
+  await prisma.admin.update({
+    where: { id: adminId },
+    data: { avatar_id: media.id },
+  });
+}
 
 // ── Auth ───────────────────────────────────────────────────
 
@@ -118,13 +178,12 @@ export async function loginAdmin(input: LoginAdminInput) {
   const valid = await bcrypt.compare(input.password, admin.password);
   if (!valid) throw new Error("INVALID_CREDENTIALS");
 
-  // update last_login
   await prisma.admin.update({
     where: { id: admin.id },
     data: { last_login: new Date() },
   });
 
-  const tokens = await generateTokens({
+  const tokens = await generateAdminTokens({
     adminId: admin.id,
     email: admin.email,
     role: admin.role as IAdminRole,
@@ -161,10 +220,12 @@ export async function updateOwnProfile(
   input: UpdateOwnProfileInput,
   avatarFile?: UploadInput,
 ) {
-  const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+  const admin = await prisma.admin.findUnique({
+    where: { id: adminId },
+    include: { avatar: { select: { id: true, key: true, mime_type: true } } },
+  });
   if (!admin) throw new Error("NOT_FOUND");
 
-  // check email uniqueness if changing
   if (input.email && input.email !== admin.email) {
     const taken = await prisma.admin.findUnique({
       where: { email: input.email },
@@ -172,28 +233,26 @@ export async function updateOwnProfile(
     if (taken) throw new Error("EMAIL_TAKEN");
   }
 
-  let avatar_url = admin.avatar_url;
-
   if (avatarFile) {
-    if (admin.avatar_url) {
-      // replace old avatar
-      const result = await replaceInCloudinary(
-        admin.avatar_url,
-        "image/jpeg", // stored mimetype fallback
-        avatarFile,
-      );
-      avatar_url = result.public_id;
-    } else {
-      const result = await uploadToCloudinary(avatarFile);
-      avatar_url = result.public_id;
-    }
+    await uploadAvatar(adminId, avatarFile, admin.avatar ?? undefined);
   }
 
-  return prisma.admin.update({
-    where: { id: adminId },
-    data: { ...input, avatar_url },
-    select: safeAdminSelect,
-  });
+  return prisma.admin
+    .findUnique({
+      where: { id: adminId },
+      select: safeAdminSelect,
+    })
+    .then(async (updated) => {
+      // apply scalar field updates first, then re-fetch with avatar
+      await prisma.admin.update({
+        where: { id: adminId },
+        data: input,
+      });
+      return prisma.admin.findUnique({
+        where: { id: adminId },
+        select: safeAdminSelect,
+      });
+    });
 }
 
 export async function changeOwnPassword(
@@ -225,23 +284,24 @@ export async function registerAdmin(
   });
   if (existing) throw new Error("EMAIL_TAKEN");
 
-  let avatar_url: string | undefined;
-
-  if (avatarFile) {
-    const result = await uploadToCloudinary(avatarFile);
-    avatar_url = result.public_id;
-  }
-
   const hashed = await bcrypt.hash(input.password, 12);
 
-  return prisma.admin.create({
+  // create admin first — we need the id for media.owner_id
+  const admin = await prisma.admin.create({
     data: {
       full_name: input.full_name,
       email: input.email,
       password: hashed,
       role: input.role,
-      avatar_url,
     },
+  });
+
+  if (avatarFile) {
+    await uploadAvatar(admin.id, avatarFile, null);
+  }
+
+  return prisma.admin.findUnique({
+    where: { id: admin.id },
     select: safeAdminSelect,
   });
 }
@@ -300,54 +360,53 @@ export async function updateAdminById(
   input: UpdateAdminInput,
   avatarFile?: UploadInput,
 ) {
-  const target = await prisma.admin.findUnique({ where: { id: targetId } });
+  const target = await prisma.admin.findUnique({
+    where: { id: targetId },
+    include: { avatar: { select: { id: true, key: true, mime_type: true } } },
+  });
   if (!target) throw new Error("NOT_FOUND");
 
-  // cannot edit yourself through this endpoint — use /me routes
   if (targetId === requestorId) throw new Error("USE_PROFILE_ENDPOINT");
 
-  // only SUPER_ADMIN can change roles
   if (input.role && requestorRole !== "SUPER_ADMIN") {
     throw new Error("CANNOT_CHANGE_ROLE");
   }
 
-  // ADMIN cannot edit a SUPER_ADMIN
   if (requestorRole === "ADMIN" && target.role === "SUPER_ADMIN") {
     throw new Error("FORBIDDEN");
   }
 
-  let avatar_url = target.avatar_url;
-
   if (avatarFile) {
-    if (target.avatar_url) {
-      const result = await replaceInCloudinary(
-        target.avatar_url,
-        "image/jpeg",
-        avatarFile,
-      );
-      avatar_url = result.public_id;
-    } else {
-      const result = await uploadToCloudinary(avatarFile);
-      avatar_url = result.public_id;
-    }
+    await uploadAvatar(targetId, avatarFile, target.avatar ?? undefined);
   }
 
-  return prisma.admin.update({
+  await prisma.admin.update({
     where: { id: targetId },
-    data: { ...input, avatar_url },
+    data: input,
+  });
+
+  return prisma.admin.findUnique({
+    where: { id: targetId },
     select: safeAdminSelect,
   });
 }
 
 export async function deleteAdminById(targetId: string, requestorId: string) {
-  const target = await prisma.admin.findUnique({ where: { id: targetId } });
+  const target = await prisma.admin.findUnique({
+    where: { id: targetId },
+    include: { avatar: { select: { id: true, key: true, mime_type: true } } },
+  });
   if (!target) throw new Error("NOT_FOUND");
 
   if (targetId === requestorId) throw new Error("CANNOT_DELETE_SELF");
 
-  // cleanup avatar from cloudinary
-  if (target.avatar_url) {
-    await deleteFromCloudinary(target.avatar_url, "image/jpeg").catch(() => {});
+  // delete avatar from Cloudinary first
+  if (target.avatar) {
+    await deleteFromCloudinary(
+      target.avatar.key,
+      target.avatar.mime_type,
+    ).catch(() => {});
+    await prisma.media.delete({ where: { id: target.avatar.id } });
   }
 
   await prisma.admin.delete({ where: { id: targetId } });

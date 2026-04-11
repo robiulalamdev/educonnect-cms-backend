@@ -14,6 +14,9 @@ model Media {
     owner_type MediaOwnerType?
     owner_id   String?
 
+    // Relations
+    admins Admin[]
+
     uploaded_by String? // Admin/user who uploaded
     created_at  DateTime @default(now())
 
