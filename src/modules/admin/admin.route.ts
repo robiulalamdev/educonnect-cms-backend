@@ -5,13 +5,13 @@ import {
   loginController,
   refreshController,
   logoutController,
-  profileController,
+  getMeController,
+  updateMeController,
   changePasswordController,
-  registerController,
-  getAdminsController,
+  registerAdminController,
+  getAdminListController,
   getAdminByIdController,
   updateAdminController,
-  updateProfileController,
   deleteAdminController,
 } from "./admin.controller.js";
 
@@ -23,28 +23,38 @@ const {
 } = ADMIN_TYPES.PERMISSIONS;
 
 export async function adminRoutes(fastify: FastifyInstance) {
-  // ── Auth Section — /auth/admin ──────────────────────────
-  fastify.post("/auth/admin/login", loginController);
-  fastify.post("/auth/admin/refresh", refreshController);
-  fastify.post("/auth/admin/logout", { preHandler: [verifyAdminToken] }, logoutController);
-  fastify.get("/auth/admin/me", { preHandler: [verifyAdminToken] }, profileController);
-  fastify.patch("/auth/admin/me", { preHandler: [verifyAdminToken] }, updateProfileController);
+  // ── Auth — /api/v1/admin/auth ──────────────────────────
+  fastify.post("/auth/login", loginController);
+  fastify.post("/auth/refresh", refreshController);
+  fastify.post(
+    "/auth/logout",
+    { preHandler: [verifyAdminToken] },
+    logoutController,
+  );
+
+  // ── Own Profile — /api/v1/admin/auth/me ───────────────
+  fastify.get("/auth/me", { preHandler: [verifyAdminToken] }, getMeController);
   fastify.patch(
-    "/auth/admin/me/password",
+    "/auth/me",
+    { preHandler: [verifyAdminToken] },
+    updateMeController,
+  );
+  fastify.patch(
+    "/auth/me/password",
     { preHandler: [verifyAdminToken] },
     changePasswordController,
   );
 
-  // ── Dashboard Management — /dashboard/admins ───────────
+  // ── Admin Management — /api/v1/admin/dashboard/admins ─
   fastify.post(
-    "/dashboard/admins/register",
+    "/dashboard/admins",
     { preHandler: [verifyAdminToken, requireRole(...CAN_REGISTER_ADMIN)] },
-    registerController,
+    registerAdminController,
   );
   fastify.get(
-    "/dashboard/admins/list",
+    "/dashboard/admins",
     { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
-    getAdminsController,
+    getAdminListController,
   );
   fastify.get(
     "/dashboard/admins/:id",
@@ -62,4 +72,3 @@ export async function adminRoutes(fastify: FastifyInstance) {
     deleteAdminController,
   );
 }
-

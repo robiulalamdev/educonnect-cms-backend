@@ -43,9 +43,12 @@
     "eslint": "^10.0.3",
     "nodemon": "^3.1.14",
     "prettier": "^3.8.1",
-    "prisma": "^6.19.2",
+    "prisma": "^7.7.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "@hono/node-server": "^1.19.13"
   }
 }

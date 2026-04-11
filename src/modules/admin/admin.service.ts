@@ -1,24 +1,37 @@
 import bcrypt from "bcryptjs";
+import { EncryptJWT, jwtDecrypt } from "jose";
 import { prisma } from "../../config/prisma.js";
 import { env } from "../../config/env.js";
-import {
-  RegisterInput,
-  LoginInput,
-  UpdateAdminInput,
-  ChangePasswordInput,
-  AdminQueryInput,
-} from "./admin.schema.js";
 import { IAdminRole } from "./admin.types.js";
-import { EncryptJWT, jwtDecrypt } from "jose";
+import {
+  RegisterAdminInput,
+  LoginAdminInput,
+  ChangePasswordInput,
+  UpdateOwnProfileInput,
+  UpdateAdminInput,
+  AdminListQueryInput,
+} from "./admin.schema.js";
+import {
+  uploadToCloudinary,
+  replaceInCloudinary,
+  deleteFromCloudinary,
+} from "../../utils/cloudinary-upload.js";
+import type { UploadInput } from "../../utils/cloudinary-upload.js";
+
+// ── JWT Secrets ────────────────────────────────────────────
 
 const accessSecret = new TextEncoder().encode(env.ADMIN_JWT_ACCESS_SECRET);
 const refreshSecret = new TextEncoder().encode(env.ADMIN_JWT_REFRESH_SECRET);
 
+// ── JWT Payload ────────────────────────────────────────────
+
 export type JwtPayload = {
-  adminId: number;
+  adminId: string; // cuid string — was number before
   email: string;
   role: IAdminRole;
 };
+
+// ── Token Generators ───────────────────────────────────────
 
 export async function generateAccessToken(
   payload: JwtPayload,
@@ -33,18 +46,26 @@ export async function generateAccessToken(
 export async function generateTokens(
   payload: JwtPayload,
 ): Promise<{ accessToken: string; refreshToken: string }> {
-  const accessToken = await generateAccessToken(payload);
-  const refreshToken = await new EncryptJWT({ ...payload })
-    .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
-    .setIssuedAt()
-    .setExpirationTime(env.ADMIN_JWT_REFRESH_EXPIRES)
-    .encrypt(refreshSecret);
+  const [accessToken, refreshToken] = await Promise.all([
+    new EncryptJWT({ ...payload })
+      .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
+      .setIssuedAt()
+      .setExpirationTime(env.ADMIN_JWT_ACCESS_EXPIRES)
+      .encrypt(accessSecret),
+
+    new EncryptJWT({ ...payload })
+      .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
+      .setIssuedAt()
+      .setExpirationTime(env.ADMIN_JWT_REFRESH_EXPIRES)
+      .encrypt(refreshSecret),
+  ]);
 
   return { accessToken, refreshToken };
 }
 
 export async function refreshAdminToken(refreshToken: string) {
   let payload: JwtPayload;
+
   try {
     const { payload: decrypted } = await jwtDecrypt(
       refreshToken,
@@ -58,7 +79,10 @@ export async function refreshAdminToken(refreshToken: string) {
   const admin = await prisma.admin.findUnique({
     where: { id: payload.adminId },
   });
-  if (!admin || !admin.isActive) throw new Error("INVALID_REFRESH_TOKEN");
+
+  if (!admin || admin.status === "INACTIVE") {
+    throw new Error("INVALID_REFRESH_TOKEN");
+  }
 
   return generateTokens({
     adminId: admin.id,
@@ -67,66 +91,40 @@ export async function refreshAdminToken(refreshToken: string) {
   });
 }
 
+// ── Safe select — never expose password ───────────────────
+
 const safeAdminSelect = {
   id: true,
-  name: true,
+  full_name: true,
   email: true,
   role: true,
-  isActive: true,
-  avatarUrl: true,
-  createdAt: true,
-  updatedAt: true,
-};
+  status: true,
+  avatar_url: true,
+  last_login: true,
+  created_at: true,
+  updated_at: true,
+} as const;
 
 // ── Auth ───────────────────────────────────────────────────
 
-export async function registerAdmin(
-  input: RegisterInput,
-  avatarFile?: { buffer: Buffer; mimetype: string },
-) {
-  const existing = await prisma.admin.findUnique({
-    where: { email: input.email },
-  });
-  if (existing) throw new Error("EMAIL_TAKEN");
-
-  let avatarUrl = input.avatarUrl;
-  // if (avatarFile) {
-  //   const uploaded = await uploadToR2(
-  //     avatarFile.buffer,
-  //     avatarFile.mimetype,
-  //     CF_FOLDERS.ADMIN_AVATARS,
-  //   );
-  //   avatarUrl = uploaded.key;
-  // }
-
-  const passwordHash = await bcrypt.hash(input.password, 12);
-
-  return prisma.admin.create({
-    data: {
-      name: input.name,
-      email: input.email,
-      password: passwordHash,
-      role: input.role,
-      isActive: input.isActive ?? true,
-      avatarUrl,
-    },
-    select: safeAdminSelect,
-  });
-}
-
-export async function loginAdmin(input: LoginInput) {
+export async function loginAdmin(input: LoginAdminInput) {
   const admin = await prisma.admin.findUnique({
     where: { email: input.email },
   });
 
   if (!admin) throw new Error("INVALID_CREDENTIALS");
-
-  if (!admin.isActive) throw new Error("ACCOUNT_SUSPENDED");
+  if (admin.status === "INACTIVE") throw new Error("ACCOUNT_SUSPENDED");
 
   const valid = await bcrypt.compare(input.password, admin.password);
   if (!valid) throw new Error("INVALID_CREDENTIALS");
 
-  const tokens = generateTokens({
+  // update last_login
+  await prisma.admin.update({
+    where: { id: admin.id },
+    data: { last_login: new Date() },
+  });
+
+  const tokens = await generateTokens({
     adminId: admin.id,
     email: admin.email,
     role: admin.role as IAdminRole,
@@ -135,58 +133,132 @@ export async function loginAdmin(input: LoginInput) {
   return {
     admin: {
       id: admin.id,
-      name: admin.name,
+      full_name: admin.full_name,
       email: admin.email,
       role: admin.role,
+      status: admin.status,
     },
     tokens,
   };
 }
 
-// ── Profile ────────────────────────────────────────────────
+// ── Own Profile ────────────────────────────────────────────
 
-export async function getAdminProfile(adminId: number) {
+export async function getAdminProfile(adminId: string) {
   const admin = await prisma.admin.findUnique({
     where: { id: adminId },
     select: safeAdminSelect,
   });
+
   if (!admin) throw new Error("NOT_FOUND");
-  if (!admin.isActive) throw new Error("ACCOUNT_SUSPENDED");
+  if (admin.status === "INACTIVE") throw new Error("ACCOUNT_SUSPENDED");
+
   return admin;
 }
 
+export async function updateOwnProfile(
+  adminId: string,
+  input: UpdateOwnProfileInput,
+  avatarFile?: UploadInput,
+) {
+  const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+  if (!admin) throw new Error("NOT_FOUND");
+
+  // check email uniqueness if changing
+  if (input.email && input.email !== admin.email) {
+    const taken = await prisma.admin.findUnique({
+      where: { email: input.email },
+    });
+    if (taken) throw new Error("EMAIL_TAKEN");
+  }
+
+  let avatar_url = admin.avatar_url;
+
+  if (avatarFile) {
+    if (admin.avatar_url) {
+      // replace old avatar
+      const result = await replaceInCloudinary(
+        admin.avatar_url,
+        "image/jpeg", // stored mimetype fallback
+        avatarFile,
+      );
+      avatar_url = result.public_id;
+    } else {
+      const result = await uploadToCloudinary(avatarFile);
+      avatar_url = result.public_id;
+    }
+  }
+
+  return prisma.admin.update({
+    where: { id: adminId },
+    data: { ...input, avatar_url },
+    select: safeAdminSelect,
+  });
+}
+
 export async function changeOwnPassword(
-  adminId: number,
+  adminId: string,
   input: ChangePasswordInput,
 ) {
   const admin = await prisma.admin.findUnique({ where: { id: adminId } });
   if (!admin) throw new Error("NOT_FOUND");
 
-  const valid = await bcrypt.compare(input.currentPassword, admin.password);
+  const valid = await bcrypt.compare(input.current_password, admin.password);
   if (!valid) throw new Error("WRONG_PASSWORD");
 
-  const passwordHash = await bcrypt.hash(input.newPassword, 12);
+  const hashed = await bcrypt.hash(input.new_password, 12);
+
   await prisma.admin.update({
     where: { id: adminId },
-    data: { password: passwordHash },
+    data: { password: hashed },
   });
 }
 
-// ── Admin Management (SUPER_ADMIN + ADMIN) ─────────────────
+// ── Admin Management ───────────────────────────────────────
 
-export async function getAdmins(query: AdminQueryInput) {
-  const { page, limit, search, role, isActive } = query;
+export async function registerAdmin(
+  input: RegisterAdminInput,
+  avatarFile?: UploadInput,
+) {
+  const existing = await prisma.admin.findUnique({
+    where: { email: input.email },
+  });
+  if (existing) throw new Error("EMAIL_TAKEN");
+
+  let avatar_url: string | undefined;
+
+  if (avatarFile) {
+    const result = await uploadToCloudinary(avatarFile);
+    avatar_url = result.public_id;
+  }
+
+  const hashed = await bcrypt.hash(input.password, 12);
+
+  return prisma.admin.create({
+    data: {
+      full_name: input.full_name,
+      email: input.email,
+      password: hashed,
+      role: input.role,
+      avatar_url,
+    },
+    select: safeAdminSelect,
+  });
+}
+
+export async function getAdminList(query: AdminListQueryInput) {
+  const { page, limit, search, role, status } = query;
   const skip = (page - 1) * limit;
 
   const where = {
     ...(search && {
       OR: [
-        { name: { contains: search, mode: "insensitive" as const } },
+        { full_name: { contains: search, mode: "insensitive" as const } },
         { email: { contains: search, mode: "insensitive" as const } },
       ],
     }),
     ...(role && { role }),
-    ...(isActive !== undefined && { isActive }),
+    ...(status && { status }),
   };
 
   const [admins, total] = await Promise.all([
@@ -194,7 +266,7 @@ export async function getAdmins(query: AdminQueryInput) {
       where,
       skip,
       take: limit,
-      orderBy: { createdAt: "desc" },
+      orderBy: { created_at: "desc" },
       select: safeAdminSelect,
     }),
     prisma.admin.count({ where }),
@@ -206,12 +278,13 @@ export async function getAdmins(query: AdminQueryInput) {
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit),
+      total_pages: Math.ceil(total / limit),
+      has_next: page < Math.ceil(total / limit),
     },
   };
 }
 
-export async function getAdminById(id: number) {
+export async function getAdminById(id: string) {
   const admin = await prisma.admin.findUnique({
     where: { id },
     select: safeAdminSelect,
@@ -220,57 +293,62 @@ export async function getAdminById(id: number) {
   return admin;
 }
 
-export async function updateAdmin(
-  targetId: number,
-  input: UpdateAdminInput,
+export async function updateAdminById(
+  targetId: string,
+  requestorId: string,
   requestorRole: IAdminRole,
-  avatarFile?: { buffer: Buffer; mimetype: string },
+  input: UpdateAdminInput,
+  avatarFile?: UploadInput,
 ) {
   const target = await prisma.admin.findUnique({ where: { id: targetId } });
   if (!target) throw new Error("NOT_FOUND");
 
-  // Only SUPER_ADMIN can change roles
+  // cannot edit yourself through this endpoint — use /me routes
+  if (targetId === requestorId) throw new Error("USE_PROFILE_ENDPOINT");
+
+  // only SUPER_ADMIN can change roles
   if (input.role && requestorRole !== "SUPER_ADMIN") {
     throw new Error("CANNOT_CHANGE_ROLE");
   }
 
-  // ADMIN cannot edit another SUPER_ADMIN
+  // ADMIN cannot edit a SUPER_ADMIN
   if (requestorRole === "ADMIN" && target.role === "SUPER_ADMIN") {
     throw new Error("FORBIDDEN");
   }
 
-  let avatarUrl = target.avatarUrl;
-  // if (avatarFile) {
-  //   // Delete old avatar from R2 if it exists (it's stored as a key)
-  //   if (target.avatarUrl) {
-  //     await deleteFromCloudinary(target.avatarUrl).catch(() => {});
-  //   }
-  //   const uploaded = await uploadToR2(
-  //     avatarFile.buffer,
-  //     avatarFile.mimetype,
-  //     CF_FOLDERS.ADMIN_AVATARS,
-  //   );
-  //   avatarUrl = uploaded.key;
-  // }
+  let avatar_url = target.avatar_url;
 
-  const data: any = { ...input };
-  if (avatarUrl !== target.avatarUrl) {
-    data.avatarUrl = avatarUrl;
+  if (avatarFile) {
+    if (target.avatar_url) {
+      const result = await replaceInCloudinary(
+        target.avatar_url,
+        "image/jpeg",
+        avatarFile,
+      );
+      avatar_url = result.public_id;
+    } else {
+      const result = await uploadToCloudinary(avatarFile);
+      avatar_url = result.public_id;
+    }
   }
 
   return prisma.admin.update({
     where: { id: targetId },
-    data,
+    data: { ...input, avatar_url },
     select: safeAdminSelect,
   });
 }
 
-export async function deleteAdmin(targetId: number, requestorId: number) {
+export async function deleteAdminById(targetId: string, requestorId: string) {
   const target = await prisma.admin.findUnique({ where: { id: targetId } });
   if (!target) throw new Error("NOT_FOUND");
 
-  // Cannot delete yourself
   if (targetId === requestorId) throw new Error("CANNOT_DELETE_SELF");
 
-  return prisma.admin.delete({ where: { id: targetId } });
+  // cleanup avatar from cloudinary
+  if (target.avatar_url) {
+    await deleteFromCloudinary(target.avatar_url, "image/jpeg").catch(() => {});
+  }
+
+  await prisma.admin.delete({ where: { id: targetId } });
 }

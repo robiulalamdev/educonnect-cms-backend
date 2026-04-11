@@ -148,6 +148,13 @@ enum MediaType {
     DOCUMENT
 }
 
+enum MediaOwnerType {
+    ADMIN
+    TEACHER
+    STUDENT
+    GUARDIAN
+}
+
 // --- Messaging ---
 
 enum ChatType {

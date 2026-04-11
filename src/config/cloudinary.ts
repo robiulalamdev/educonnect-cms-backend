@@ -13,31 +13,31 @@ export { cloudinary };
 
 export const CLD_FOLDERS = {
   // Users
-  USER_AVATARS: "coachly/users/avatars",
+  USER_AVATARS: "cms-dev/users/avatars",
 
   // Admin
-  ADMIN_AVATARS: "coachly/admins/avatars",
+  ADMIN_AVATARS: "cms-dev/admins/avatars",
 
   // Posts
-  POST_MEDIA: "coachly/posts/media",
+  POST_MEDIA: "cms-dev/posts/media",
 
   // Services
-  SERVICE_COVERS: "coachly/services/covers",
+  SERVICE_COVERS: "cms-dev/services/covers",
 
   // Payment
-  PAYMENT_SCREENSHOTS: "coachly/payments/screenshots",
+  PAYMENT_SCREENSHOTS: "cms-dev/payments/screenshots",
 
   // Tasks
-  TASK_ATTACHMENTS: "coachly/tasks/attachments",
+  TASK_ATTACHMENTS: "cms-dev/tasks/attachments",
 
   // Daily Notes
-  NOTE_ATTACHMENTS: "coachly/notes/attachments",
+  NOTE_ATTACHMENTS: "cms-dev/notes/attachments",
 
   // Announcements
-  ANNOUNCEMENT_MEDIA: "coachly/announcements/media",
+  ANNOUNCEMENT_MEDIA: "cms-dev/announcements/media",
 
   // Messages
-  MESSAGE_MEDIA: "coachly/messages/media",
+  MESSAGE_MEDIA: "cms-dev/messages/media",
 } as const;
 
 export type CldFolder = (typeof CLD_FOLDERS)[keyof typeof CLD_FOLDERS];

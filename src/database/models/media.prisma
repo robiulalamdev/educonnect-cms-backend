@@ -1,0 +1,22 @@
+model Media {
+    id        String    @id @default(cuid())
+    url       String? // public URL to access the media
+    key       String    @unique // storage bucket key (e.g. S3 key)
+    mime_type String // "image/jpeg", "application/pdf"
+    size      Int // bytes
+    type      MediaType
+    alt_text  String?
+
+    width  Int? // for images/videos
+    height Int? // for images/videos
+
+    // Polymorphic ownership
+    owner_type MediaOwnerType?
+    owner_id   String?
+
+    uploaded_by String? // Admin/user who uploaded
+    created_at  DateTime @default(now())
+
+    @@index([owner_type, owner_id]) // critical for lookup performance
+    @@map("media")
+}
