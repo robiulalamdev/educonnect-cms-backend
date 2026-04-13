@@ -1,0 +1,203 @@
+import { prisma } from "../../config/prisma.js";
+import { CreateBatchInput, UpdateBatchInput, BatchQueryInput, DropdownQueryInput } from "./batch.schema.js";
+import { BATCH_TYPES } from "./batch.types.js";
+import { ChatType } from "@prisma/client";
+
+const safeBatchSelect = {
+  id: true,
+  name: true,
+  description: true,
+  max_students: true,
+  enrolled_count: true,
+  waitlist_enabled: true,
+  waitlist_count: true,
+  status: true,
+  start_date: true,
+  end_date: true,
+  service_id: true,
+  service: {
+    select: {
+      title: true,
+      teacher_id: true,
+    }
+  },
+  schedule: {
+    select: {
+      day: true,
+      start_time: true,
+      end_time: true
+    }
+  },
+  group_chat: {
+    select: {
+      id: true
+    }
+  }
+} as const;
+
+export async function createBatch(teacherId: string, input: CreateBatchInput) {
+  const { service_id, schedule, ...data } = input;
+
+  // 1. Verify service ownership
+  const service = await prisma.service.findUnique({
+    where: { id: service_id }
+  });
+
+  if (!service) throw new Error("SERVICE_NOT_FOUND");
+  if (service.teacher_id !== teacherId) throw new Error("FORBIDDEN");
+
+  return prisma.$transaction(async (tx) => {
+    // 2. Create the batch
+    const batch = await tx.batch.create({
+      data: {
+        ...data,
+        service_id,
+        schedule: {
+          create: schedule
+        }
+      }
+    });
+
+    // 3. Create Group Chat for the batch
+    const chat = await tx.chat.create({
+      data: {
+        type: ChatType.BATCH_GROUP,
+        batch_id: batch.id,
+        name: `${service.title} - ${batch.name}`,
+        participants: {
+          create: {
+            user_id: teacherId
+          }
+        }
+      }
+    });
+
+    return tx.batch.findUnique({
+      where: { id: batch.id },
+      select: safeBatchSelect
+    });
+  });
+}
+
+export async function getBatchList(query: BatchQueryInput) {
+  const { page, limit, service_id, teacher_id, status, search } = query;
+  const skip = (page - 1) * limit;
+
+  const where: any = {
+    deleted_at: null,
+    ...(service_id && { service_id }),
+    ...(teacher_id && { service: { teacher_id } }),
+    ...(status && { status }),
+    ...(search && {
+      OR: [
+        { name: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ]
+    })
+  };
+
+  const [batches, total] = await Promise.all([
+    prisma.batch.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { created_at: "desc" },
+      select: safeBatchSelect
+    }),
+    prisma.batch.count({ where })
+  ]);
+
+  return {
+    data: batches,
+    meta: {
+      total,
+      page,
+      limit,
+      total_pages: Math.ceil(total / limit)
+    }
+  };
+}
+
+export async function getBatchById(id: string) {
+  const batch = await prisma.batch.findUnique({
+    where: { id },
+    select: safeBatchSelect
+  });
+  if (!batch) throw new Error("NOT_FOUND");
+  return batch;
+}
+
+export async function updateBatch(batchId: string, teacherId: string, input: UpdateBatchInput) {
+  const batch = await prisma.batch.findUnique({
+    where: { id: batchId },
+    include: { service: true }
+  });
+
+  if (!batch) throw new Error("NOT_FOUND");
+  if (batch.service.teacher_id !== teacherId) throw new Error("FORBIDDEN");
+
+  const { schedule, ...data } = input;
+
+  return prisma.$transaction(async (tx) => {
+    // 1. Update basic fields
+    await tx.batch.update({
+      where: { id: batchId },
+      data: data as any
+    });
+
+    // 2. Sync Schedule if provided
+    if (schedule) {
+      await tx.batchSchedule.deleteMany({ where: { batch_id: batchId } });
+      await tx.batchSchedule.createMany({
+        data: schedule.map(s => ({ ...s, batch_id: batchId }))
+      });
+    }
+
+    return tx.batch.findUnique({
+      where: { id: batchId },
+      select: safeBatchSelect
+    });
+  });
+}
+
+/**
+ * Optimized Dropdown API
+ */
+export async function getBatchesDropdown(query: DropdownQueryInput, context: { teacher_id?: string; service_id?: string }) {
+  const { page, limit, search, is_active } = query;
+  const skip = (page - 1) * limit;
+
+  const where = {
+    deleted_at: null,
+    ...(is_active && { status: BATCH_TYPES.STATUS_OBJECT.ONGOING }), // Or UPCOMING
+    ...(context.teacher_id && { service: { teacher_id: context.teacher_id } }),
+    ...(context.service_id && { service_id: context.service_id }),
+    ...(search && {
+      name: { contains: search, mode: "insensitive" as const }
+    })
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.batch.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true // label
+      }
+    }),
+    prisma.batch.count({ where })
+  ]);
+
+  return {
+    data: data.map(b => ({ id: b.id, label: b.name })),
+    meta: {
+      total,
+      page,
+      limit,
+      total_pages: Math.ceil(total / limit)
+    }
+  };
+}

@@ -1,29 +1,29 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { jwtDecrypt } from "jose";
 import { env } from "../../config/env.js";
-import { IAdminRole } from "./admin.types.js";
-import { JwtPayload, generateAdminAccessToken } from "./admin.service.js";
+import type { IUserRole } from "./auth.types.js";
+import { generateUserAccessToken, type UserJwtPayload } from "./auth.service.js";
 
-const accessSecret = new TextEncoder().encode(env.ADMIN_JWT_ACCESS_SECRET);
-const refreshSecret = new TextEncoder().encode(env.ADMIN_JWT_REFRESH_SECRET);
+const accessSecret = new TextEncoder().encode(env.JWT_ACCESS_SECRET);
+const refreshSecret = new TextEncoder().encode(env.JWT_REFRESH_SECRET);
 
-// ── Cookie options ─────────────────────────────────────────
+// ── Cookie Options ─────────────────────────────────────────
 
-export const accessCookieOptions = {
+export const userAccessCookieOptions = {
   httpOnly: true,
   secure: env.NODE_ENV === "production",
   sameSite: "lax" as const,
   path: "/",
-  maxAge: env.ADMIN_COOKIE_ACCESS_MAX_AGE,
+  maxAge: env.COOKIE_ACCESS_MAX_AGE,
   signed: true,
 };
 
-export const refreshCookieOptions = {
+export const userRefreshCookieOptions = {
   httpOnly: true,
   secure: env.NODE_ENV === "production",
   sameSite: "lax" as const,
   path: "/",
-  maxAge: env.ADMIN_COOKIE_REFRESH_MAX_AGE,
+  maxAge: env.COOKIE_REFRESH_MAX_AGE,
   signed: true,
 };
 
@@ -31,20 +31,20 @@ export const refreshCookieOptions = {
 
 declare module "fastify" {
   interface FastifyRequest {
-    admin?: JwtPayload;
+    user?: UserJwtPayload;
   }
 }
 
 // ── Helpers ────────────────────────────────────────────────
 
-async function decryptAccessToken(token: string): Promise<JwtPayload> {
+async function decryptAccessToken(token: string): Promise<UserJwtPayload> {
   const { payload } = await jwtDecrypt(token, accessSecret);
-  return payload as unknown as JwtPayload;
+  return payload as unknown as UserJwtPayload;
 }
 
-async function decryptRefreshToken(token: string): Promise<JwtPayload> {
+async function decryptRefreshToken(token: string): Promise<UserJwtPayload> {
   const { payload } = await jwtDecrypt(token, refreshSecret);
-  return payload as unknown as JwtPayload;
+  return payload as unknown as UserJwtPayload;
 }
 
 function getSignedCookie(req: FastifyRequest, name: string): string | null {
@@ -55,36 +55,36 @@ function getSignedCookie(req: FastifyRequest, name: string): string | null {
   return value;
 }
 
-function clearAuthCookies(reply: FastifyReply) {
+function clearUserCookies(reply: FastifyReply) {
   reply
-    .clearCookie(env.ADMIN_COOKIE_ACCESS_NAME, { path: "/" })
-    .clearCookie(env.ADMIN_COOKIE_REFRESH_NAME, { path: "/" });
+    .clearCookie(env.COOKIE_ACCESS_NAME, { path: "/" })
+    .clearCookie(env.COOKIE_REFRESH_NAME, { path: "/" });
 }
 
-// ── Main auth middleware ───────────────────────────────────
+// ── Main Auth Middleware ───────────────────────────────────
 
-export async function verifyAdminToken(
+export async function verifyUserToken(
   req: FastifyRequest,
   reply: FastifyReply,
 ) {
-  const accessToken = getSignedCookie(req, env.ADMIN_COOKIE_ACCESS_NAME);
-  const refreshToken = getSignedCookie(req, env.ADMIN_COOKIE_REFRESH_NAME);
+  const accessToken = getSignedCookie(req, env.COOKIE_ACCESS_NAME);
+  const refreshToken = getSignedCookie(req, env.COOKIE_REFRESH_NAME);
 
-  // helper: try to restore session from refresh token
+  // helper: restore session from a valid refresh token
   async function restoreFromRefresh(): Promise<boolean> {
     if (!refreshToken) return false;
     try {
       const decoded = await decryptRefreshToken(refreshToken);
       const { iat, exp, ...payloadData } = decoded as any;
-      const newAccessToken = await generateAdminAccessToken(
-        payloadData as JwtPayload,
+      const newAccessToken = await generateUserAccessToken(
+        payloadData as UserJwtPayload,
       );
       reply.setCookie(
-        env.ADMIN_COOKIE_ACCESS_NAME,
+        env.COOKIE_ACCESS_NAME,
         newAccessToken,
-        accessCookieOptions,
+        userAccessCookieOptions,
       );
-      req.admin = payloadData as JwtPayload;
+      req.user = payloadData as UserJwtPayload;
       return true;
     } catch {
       return false;
@@ -93,7 +93,7 @@ export async function verifyAdminToken(
 
   if (accessToken) {
     try {
-      req.admin = await decryptAccessToken(accessToken);
+      req.user = await decryptAccessToken(accessToken);
       return;
     } catch {
       // access token expired — try refresh
@@ -107,22 +107,22 @@ export async function verifyAdminToken(
   }
 
   // nothing worked — clear and reject
-  clearAuthCookies(reply);
+  clearUserCookies(reply);
   return reply
     .status(401)
     .send({ success: false, message: "Not authenticated" });
 }
 
-// ── Role guard ─────────────────────────────────────────────
+// ── Role Guard ─────────────────────────────────────────────
 
-export function requireRole(...roles: IAdminRole[]) {
+export function requireUserRole(...roles: IUserRole[]) {
   return async (req: FastifyRequest, reply: FastifyReply) => {
-    if (!req.admin) {
+    if (!req.user) {
       return reply
         .status(401)
         .send({ success: false, message: "Not authenticated" });
     }
-    if (!roles.includes(req.admin.role)) {
+    if (!roles.includes(req.user.role)) {
       return reply.status(403).send({
         success: false,
         message: "Forbidden — insufficient permissions",

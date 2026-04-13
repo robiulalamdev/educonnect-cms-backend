@@ -150,6 +150,7 @@ async function uploadAvatar(
     data: {
       url: result.url,
       key: result.public_id,
+      filename: result.filename,
       mime_type: result.mimetype,
       size: result.size,
       type: "IMAGE",
