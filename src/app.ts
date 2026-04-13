@@ -2,6 +2,8 @@ import Fastify from "fastify";
 import helmet from "@fastify/helmet";
 import cookie from "@fastify/cookie";
 import multipart from "@fastify/multipart";
+import fastifySocketIo from "fastify-socket.io";
+import { socketManager } from "./config/socket.js";
 
 // Plugins
 import corsPlugin from "./plugins/cors.js";
@@ -20,6 +22,7 @@ import { batchRoutes } from "./modules/batch/batch.route.js";
 import { enrollmentRoutes } from "./modules/enrollment/enrollment.route.js";
 import { postRoutes } from "./modules/post/post.route.js";
 import { chatRoutes } from "./modules/chat/chat.route.js";
+import { statisticsRoutes } from "./modules/statistics/statistics.route.js";
 import { env } from "./config/env.js";
 
 export function buildApp() {
@@ -45,6 +48,19 @@ export function buildApp() {
       fileSize: 10 * 1024 * 1024, // 10MB
       files: 1,
     },
+  });
+
+  // Socket.io Integration
+  app.register(fastifySocketIo, {
+    cors: {
+      origin: [env.FRONTEND_URL, env.ADMIN_FRONTEND_URL],
+      credentials: true,
+    },
+  });
+
+  // Initialize SocketManager once server is ready
+  app.addHook("onReady", async () => {
+    socketManager.initialize(app);
   });
 
   // Initialize route
@@ -73,9 +89,7 @@ export function buildApp() {
   app.register(enrollmentRoutes, { prefix: "/api/v1/enrollments" });
   app.register(postRoutes, { prefix: "/api/v1/posts" });
   app.register(chatRoutes, { prefix: "/api/v1/chats" });
-
-  return app;
-}
+  app.register(statisticsRoutes, { prefix: "/api/v1/statistics" });
 
   return app;
 }

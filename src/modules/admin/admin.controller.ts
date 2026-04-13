@@ -6,6 +6,7 @@ import {
   updateOwnProfileSchema,
   updateAdminSchema,
   adminListQuerySchema,
+  auditLogQuerySchema,
 } from "./admin.schema.js";
 import {
   loginAdmin,
@@ -19,6 +20,8 @@ import {
   updateAdminById,
   deleteAdminById,
 } from "./admin.service.js";
+import { getAuditLogs, createAuditLog } from "./audit.service.js";
+import { AUDIT_ACTION_OBJECT } from "./admin.types.js";
 import {
   accessCookieOptions,
   refreshCookieOptions,
@@ -257,7 +260,7 @@ export async function registerAdminController(
     : undefined;
 
   try {
-    const admin = await registerAdmin(body.data, avatarUpload);
+    const admin = await registerAdmin(req.admin!.adminId, body.data, avatarUpload);
     return reply.status(201).send({
       success: true,
       message: "Admin registered successfully",
@@ -301,6 +304,22 @@ export async function getAdminByIdController(
       .status(404)
       .send({ success: false, message: "Admin not found" });
   }
+}
+
+
+export async function getAuditLogsController(
+  req: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const query = auditLogQuerySchema.safeParse(req.query);
+  if (!query.success)
+    return reply.status(400).send({
+      success: false,
+      errors: query.error.flatten().fieldErrors,
+    });
+
+  const result = await getAuditLogs(query.data);
+  return reply.send({ success: true, ...result });
 }
 
 export async function updateAdminController(

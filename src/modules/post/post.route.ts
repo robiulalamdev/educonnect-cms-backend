@@ -13,7 +13,7 @@ import { authenticate, requireRole } from "../../middleware/auth.middleware.js";
 export async function postRoutes(fastify: FastifyInstance) {
   // ── Root / Public ──────────────────────────────────────────
   fastify.get("/", getPostFeedController);
-  fastify.get("/:slug", getPostByIdController);
+  fastify.get("/:id", getPostByIdController);
   fastify.get("/dropdown/root", getPostsDropdownController);
 
   // ── Profile / Own Data ─────────────────────────────────────

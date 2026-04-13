@@ -11,6 +11,8 @@ import {
   UpdateAdminInput,
   AdminListQueryInput,
 } from "./admin.schema.js";
+import { createAuditLog } from "./audit.service.js";
+import { AUDIT_ACTION_OBJECT } from "./admin.types.js";
 import {
   uploadToCloudinary,
   replaceInCloudinary,
@@ -277,6 +279,7 @@ export async function changeOwnPassword(
 // ── Admin Management ───────────────────────────────────────
 
 export async function registerAdmin(
+  requestorId: string,
   input: RegisterAdminInput,
   avatarFile?: UploadInput,
 ) {
@@ -300,6 +303,15 @@ export async function registerAdmin(
   if (avatarFile) {
     await uploadAvatar(admin.id, avatarFile, null);
   }
+
+  // AUDIT LOG
+  createAuditLog(
+    requestorId,
+    AUDIT_ACTION_OBJECT.ADMIN_CREATED,
+    "admin",
+    admin.id,
+    { email: admin.email, role: admin.role }
+  ).catch(console.error);
 
   return prisma.admin.findUnique({
     where: { id: admin.id },
@@ -386,6 +398,17 @@ export async function updateAdminById(
     data: input,
   });
 
+  // AUDIT LOG
+  if (input.role || input.status) {
+    createAuditLog(
+      requestorId,
+      input.role ? AUDIT_ACTION_OBJECT.ADMIN_ROLE_CHANGED : AUDIT_ACTION_OBJECT.USER_SUSPENDED, // SUSPENDED used for status: INACTIVE
+      "admin",
+      targetId,
+      { changes: input }
+    ).catch(console.error);
+  }
+
   return prisma.admin.findUnique({
     where: { id: targetId },
     select: safeAdminSelect,
@@ -411,4 +434,13 @@ export async function deleteAdminById(targetId: string, requestorId: string) {
   }
 
   await prisma.admin.delete({ where: { id: targetId } });
+
+  // AUDIT LOG
+  createAuditLog(
+    requestorId,
+    AUDIT_ACTION_OBJECT.USER_BANNED, // BANNED used for deletion in audit context
+    "admin",
+    targetId,
+    { email: target.email }
+  ).catch(console.error);
 }

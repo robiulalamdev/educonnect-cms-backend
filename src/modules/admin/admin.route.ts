@@ -13,6 +13,7 @@ import {
   getAdminByIdController,
   updateAdminController,
   deleteAdminController,
+  getAuditLogsController,
 } from "./admin.controller.js";
 
 const {
@@ -20,6 +21,7 @@ const {
   CAN_EDIT_ADMIN,
   CAN_REGISTER_ADMIN,
   CAN_DELETE_ADMIN,
+  CAN_VIEW_AUDIT_LOG,
 } = ADMIN_TYPES.PERMISSIONS;
 
 export async function adminRoutes(fastify: FastifyInstance) {
@@ -56,11 +58,6 @@ export async function adminRoutes(fastify: FastifyInstance) {
     { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
     getAdminListController,
   );
-  fastify.get(
-    "/dashboard/admins/:id",
-    { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
-    getAdminByIdController,
-  );
   fastify.patch(
     "/dashboard/admins/:id",
     { preHandler: [verifyAdminToken, requireRole(...CAN_EDIT_ADMIN)] },
@@ -70,5 +67,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
     "/dashboard/admins/:id",
     { preHandler: [verifyAdminToken, requireRole(...CAN_DELETE_ADMIN)] },
     deleteAdminController,
+  );
+
+  // ── Audit Logs — /api/v1/admin/dashboard/audit-logs ──────
+  fastify.get(
+    "/dashboard/audit-logs",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_AUDIT_LOG)] },
+    getAuditLogsController,
   );
 }

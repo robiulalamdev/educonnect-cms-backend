@@ -4,7 +4,7 @@ import { POST_TYPES } from "./post.types.js";
 export const createPostSchema = z.object({
   type: z.nativeEnum(POST_TYPES.TYPE_OBJECT),
   title: z.string().min(3).max(255),
-  body: z.string().min(10).max(5000),
+  content: z.string().min(10).max(5000),
   media_ids: z.array(z.string()).optional(),
   service_id: z.string().optional(), // If OFFERING, can link to a service
   level_id: z.string().optional(),

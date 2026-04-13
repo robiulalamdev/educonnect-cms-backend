@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma.js";
 import { CreateDirectChatInput, SendMessageInput, ChatQueryInput, MessageQueryInput } from "./chat.schema.js";
 import { CHAT_TYPES } from "./chat.types.js";
+import { socketManager } from "../../config/socket.js";
 
 const safeMessageSelect = {
   id: true,
@@ -141,8 +142,8 @@ export async function sendMessage(chatId: string, senderId: string, input: SendM
   });
   if (!member) throw new Error("FORBIDDEN");
 
-  return prisma.$transaction(async (tx) => {
-    const message = await tx.message.create({
+  const message = await prisma.$transaction(async (tx) => {
+    const msg = await tx.message.create({
       data: {
         ...data,
         chat_id: chatId,
@@ -160,8 +161,13 @@ export async function sendMessage(chatId: string, senderId: string, input: SendM
       data: { updated_at: new Date() }
     });
 
-    return message;
+    return msg;
   });
+
+  // Real-time broadcast
+  socketManager.emitToRoom(`chat_${chatId}`, "new_message", message);
+
+  return message;
 }
 
 export async function markChatRead(chatId: string, userId: string) {

@@ -31,6 +31,14 @@ export const batchQuerySchema = z.object({
   search: z.string().optional(),
 });
 
+export const dropdownQuerySchema = z.object({
+  page: z.coerce.number().min(1).optional().default(1),
+  limit: z.coerce.number().min(1).max(100).optional().default(20),
+  search: z.string().optional(),
+  is_active: z.coerce.boolean().optional().default(true),
+});
+
 export type CreateBatchInput = z.infer<typeof createBatchSchema>;
 export type UpdateBatchInput = z.infer<typeof updateBatchSchema>;
 export type BatchQueryInput = z.infer<typeof batchQuerySchema>;
+export type DropdownQueryInput = z.infer<typeof dropdownQuerySchema>;

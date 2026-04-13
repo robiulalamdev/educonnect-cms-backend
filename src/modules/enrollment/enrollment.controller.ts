@@ -50,7 +50,7 @@ export async function getAdminEnrollmentsController(req: FastifyRequest, reply: 
 }
 
 export async function updatePaymentStatusController(req: FastifyRequest, reply: FastifyReply) {
-  const actorId = req.admin?.userId || req.user?.userId;
+  const actorId = req.admin?.adminId || req.user?.userId;
   const is_admin = !!req.admin;
   const { id } = req.params as { id: string };
   const input = updatePaymentStatusSchema.parse(req.body);

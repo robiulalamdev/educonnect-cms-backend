@@ -1,7 +1,7 @@
 import { prisma } from "../../config/prisma.js";
 import { CreateBatchInput, UpdateBatchInput, BatchQueryInput, DropdownQueryInput } from "./batch.schema.js";
 import { BATCH_TYPES } from "./batch.types.js";
-import { ChatType } from "@prisma/client";
+import { CHAT_TYPES } from "../chat/chat.types.js";
 
 const safeBatchSelect = {
   id: true,
@@ -61,7 +61,7 @@ export async function createBatch(teacherId: string, input: CreateBatchInput) {
     // 3. Create Group Chat for the batch
     const chat = await tx.chat.create({
       data: {
-        type: ChatType.BATCH_GROUP,
+        type: CHAT_TYPES.TYPE_OBJECT.BATCH_GROUP as any,
         batch_id: batch.id,
         name: `${service.title} - ${batch.name}`,
         participants: {
@@ -84,7 +84,6 @@ export async function getBatchList(query: BatchQueryInput) {
   const skip = (page - 1) * limit;
 
   const where: any = {
-    deleted_at: null,
     ...(service_id && { service_id }),
     ...(teacher_id && { service: { teacher_id } }),
     ...(status && { status }),
@@ -168,7 +167,6 @@ export async function getBatchesDropdown(query: DropdownQueryInput, context: { t
   const skip = (page - 1) * limit;
 
   const where = {
-    deleted_at: null,
     ...(is_active && { status: BATCH_TYPES.STATUS_OBJECT.ONGOING }), // Or UPCOMING
     ...(context.teacher_id && { service: { teacher_id: context.teacher_id } }),
     ...(context.service_id && { service_id: context.service_id }),

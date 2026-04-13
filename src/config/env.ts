@@ -50,6 +50,19 @@ const schema = {
   CLOUDINARY_CLOUD_NAME: "string",
   CLOUDINARY_API_KEY: "string",
   CLOUDINARY_API_SECRET: "string",
+
+  // EMAIL (GMAIL SMTP)
+  GMAIL_USER: "string",
+  GMAIL_APP_PASS: "string",
+
+  // FIREBASE (FCM)
+  FIREBASE_PROJECT_ID: "string",
+  FIREBASE_CLIENT_EMAIL: "string",
+  FIREBASE_PRIVATE_KEY: "string",
+
+  // FRONTEND URLS (For Socket CORS)
+  FRONTEND_URL: "string",
+  ADMIN_FRONTEND_URL: "string",
 } as const;
 
 // This will hold our final validated data

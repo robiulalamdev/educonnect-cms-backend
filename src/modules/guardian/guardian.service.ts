@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma.js";
 import { LinkStudentInput, RespondToLinkInput } from "./guardian.schema.js";
+import { GUARDIAN_TYPES } from "./guardian.types.js";
 
 /**
  * Guardian requests to link with a student
@@ -35,12 +36,12 @@ export async function requestStudentLink(guardianUserId: string, input: LinkStud
     where: {
       guardian_profile_id: guardianProfile.id,
       student_profile_id: studentUser.student_profile.id,
-      status: { in: ["PENDING", "ACTIVE"] },
+      status: { in: [GUARDIAN_TYPES.STATUS_OBJECT.PENDING, GUARDIAN_TYPES.STATUS_OBJECT.ACTIVE] as any },
     },
   });
 
   if (existing) {
-    throw new Error(existing.status === "ACTIVE" ? "ALREADY_LINKED" : "LINK_PENDING");
+    throw new Error(existing.status === GUARDIAN_TYPES.STATUS_OBJECT.ACTIVE ? "ALREADY_LINKED" : "LINK_PENDING");
   }
 
   // 4. Create the link request
@@ -48,7 +49,7 @@ export async function requestStudentLink(guardianUserId: string, input: LinkStud
     data: {
       guardian_profile_id: guardianProfile.id,
       student_profile_id: studentUser.student_profile.id,
-      status: "PENDING",
+      status: GUARDIAN_TYPES.STATUS_OBJECT.PENDING as any,
       initiated_by: "GUARDIAN",
     },
   });
@@ -130,12 +131,12 @@ export async function respondToLinkRequest(studentUserId: string, input: Respond
 
   if (!link) throw new Error("LINK_NOT_FOUND");
   if (link.student_profile_id !== profile.id) throw new Error("UNAUTHORIZED");
-  if (link.status !== "PENDING") throw new Error("LINK_ALREADY_PROCESSED");
+  if (link.status !== GUARDIAN_TYPES.STATUS_OBJECT.PENDING) throw new Error("LINK_ALREADY_PROCESSED");
 
   return prisma.guardianStudent.update({
     where: { id: input.link_id },
     data: {
-      status: input.action === "ACTIVE" ? "ACTIVE" : "REMOVED",
+      status: input.action === GUARDIAN_TYPES.STATUS_OBJECT.ACTIVE ? GUARDIAN_TYPES.STATUS_OBJECT.ACTIVE : GUARDIAN_TYPES.STATUS_OBJECT.REMOVED as any,
       responded_at: new Date(),
     },
   });

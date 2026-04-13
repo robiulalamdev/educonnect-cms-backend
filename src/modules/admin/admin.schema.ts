@@ -44,6 +44,17 @@ export const adminListQuerySchema = z.object({
   status: z.enum(ADMIN_TYPES.STATUS).optional(),
 });
 
+export const auditLogQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  admin_id: z.string().optional(),
+  action: z.enum(ADMIN_TYPES.AUDIT_ACTIONS).optional(),
+  target_type: z.string().optional(),
+  target_id: z.string().optional(),
+  start_date: z.string().datetime().optional(),
+  end_date: z.string().datetime().optional(),
+});
+
 // ── Types ──────────────────────────────────────────────────
 
 export type RegisterAdminInput = z.infer<typeof registerAdminSchema>;
@@ -52,3 +63,4 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type UpdateOwnProfileInput = z.infer<typeof updateOwnProfileSchema>;
 export type UpdateAdminInput = z.infer<typeof updateAdminSchema>;
 export type AdminListQueryInput = z.infer<typeof adminListQuerySchema>;
+export type AuditLogQueryInput = z.infer<typeof auditLogQuerySchema>;

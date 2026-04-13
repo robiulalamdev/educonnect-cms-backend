@@ -1,4 +1,5 @@
 import { FastifyRequest, FastifyReply } from "fastify";
+import { prisma } from "../../config/prisma.js";
 import { 
   createPostSchema, 
   updatePostSchema, 
@@ -41,15 +42,8 @@ export async function getAdminPostsController(req: FastifyRequest, reply: Fastif
 }
 
 export async function getPostByIdController(req: FastifyRequest, reply: FastifyReply) {
-  const { slug } = req.params as { slug: string };
-  // Find by slug for public detail
-  const post = await prisma.post.findUnique({
-    where: { slug },
-    select: { id: true }
-  });
-  if (!post) return reply.status(404).send({ success: false, message: "Post not found" });
-  
-  const data = await getPostById(post.id);
+  const { id } = req.params as { id: string };
+  const data = await getPostById(id);
   return reply.send({ success: true, data });
 }
 

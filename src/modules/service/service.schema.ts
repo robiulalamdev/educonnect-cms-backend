@@ -53,6 +53,10 @@ export type CreateServiceInput = z.infer<typeof createServiceSchema>;
 export type UpdateServiceInput = z.infer<typeof updateServiceSchema>;
 export type ServiceQueryInput = z.infer<typeof serviceQuerySchema>;
 
-export type CreateServiceInput = z.infer<typeof createServiceSchema>;
-export type UpdateServiceInput = z.infer<typeof updateServiceSchema>;
-export type ServiceQueryInput = z.infer<typeof serviceQuerySchema>;
+export const dropdownQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().optional(),
+  is_active: z.coerce.boolean().optional(),
+});
+export type DropdownQueryInput = z.infer<typeof dropdownQuerySchema>;

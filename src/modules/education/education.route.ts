@@ -8,6 +8,7 @@ import {
   getSubjectsDropdownController,
 } from "./education.controller.js";
 import { authenticate, requireRole } from "../../middleware/auth.middleware.js";
+import { ADMIN_TYPES } from "../admin/admin.types.js";
 
 export async function educationRoutes(fastify: FastifyInstance) {
   // ── Root / Public ──────────────────────────────────────────
@@ -23,7 +24,7 @@ export async function educationRoutes(fastify: FastifyInstance) {
   // ── Dashboard / Admin ──────────────────────────────────────
   fastify.register(async (adminRoutes) => {
     adminRoutes.addHook("preHandler", authenticate);
-    adminRoutes.addHook("preHandler", requireRole("SUPER_ADMIN", "ADMIN", "MANAGER"));
+    adminRoutes.addHook("preHandler", requireRole(...ADMIN_TYPES.PERMISSIONS.CAN_MANAGE_EDUCATION));
 
     // Management endpoints (can be added later if needed, e.g., create subjects)
     adminRoutes.get("/dropdown/levels", getLevelsDropdownController);

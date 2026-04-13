@@ -18,6 +18,9 @@ import {
 } from "../../utils/cloudinary-upload.js";
 import type { UploadInput } from "../../utils/cloudinary-upload.js";
 import { CLD_FOLDERS } from "../../config/cloudinary.js";
+import { emailService } from "../shared/email.service.js";
+import { socketManager } from "../../config/socket.js";
+import { getAdminStats } from "../statistics/statistics.service.js";
 
 // ── JWT Secrets ────────────────────────────────────────────
 
@@ -223,7 +226,10 @@ export async function registerUser(input: RegisterInput) {
     await prisma.guardianProfile.create({ data: { user_id: user.id } });
   }
 
-  // Queue the verification email (background worker picks this up)
+  // Send Verification Email immediately
+  emailService.sendVerificationEmail(user.email, verificationToken).catch(console.error);
+
+  // Still record in Queue for audit/retry purposes
   await prisma.emailQueue.create({
     data: {
       to_email: user.email,
@@ -235,9 +241,15 @@ export async function registerUser(input: RegisterInput) {
         expires_at: verificationExpiry.toISOString(),
         user_id: user.id,
       },
+      sent: true, // Mark as sent since we just did
       max_attempts: 3,
     },
   });
+
+  // Trigger real-time statistics update for admins
+  getAdminStats().then(stats => {
+    socketManager.emitStatsUpdate(stats);
+  }).catch(console.error);
 
   return {
     id: user.id,

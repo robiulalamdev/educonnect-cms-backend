@@ -9,8 +9,7 @@ const safePostSelect = {
   type: true,
   status: true,
   title: true,
-  slug: true,
-  body: true,
+  content: true,
   service_id: true,
   level_id: true,
   subject_id: true,
@@ -36,16 +35,10 @@ const safePostSelect = {
 export async function createPost(authorId: string, input: CreatePostInput) {
   const { media_ids, ...data } = input;
 
-  // Generate slug
-  let slug = input.title.toLowerCase().replace(/ /g, "-").replace(/[^\w-]+/g, "");
-  const existing = await prisma.post.findUnique({ where: { slug } });
-  if (existing) slug = `${slug}-${Date.now()}`;
-
   return prisma.post.create({
     data: {
       ...data,
       author_id: authorId,
-      slug,
       media: {
         connect: media_ids?.map(id => ({ id })) || []
       }
@@ -67,7 +60,7 @@ export async function getPostList(query: PostQueryInput) {
     ...(search && {
       OR: [
         { title: { contains: search, mode: "insensitive" } },
-        { body: { contains: search, mode: "insensitive" } },
+        { content: { contains: search, mode: "insensitive" } },
       ]
     })
   };
