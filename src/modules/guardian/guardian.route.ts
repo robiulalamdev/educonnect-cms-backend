@@ -1,36 +1,20 @@
 import { FastifyInstance } from "fastify";
 import { verifyUserToken, requireUserRole } from "../auth/auth.middleware.js";
-import {
-  requestLinkController,
-  getGuardianLinksController,
-  getStudentLinksController,
-  respondToLinkController,
+import { USER_TYPES } from "../user/user.types.js";
+import { 
+  updateGuardianProfileController, 
+  getGuardianMeController 
 } from "./guardian.controller.js";
 
 export async function guardianRoutes(fastify: FastifyInstance) {
-  // Guardian routes
-  fastify.post(
-    "/link",
-    { preHandler: [verifyUserToken, requireUserRole("GUARDIAN")] },
-    requestLinkController,
-  );
+  fastify.register(async (privateRoutes) => {
+    privateRoutes.addHook("preHandler", verifyUserToken);
+    privateRoutes.addHook("preHandler", requireUserRole(USER_TYPES.ROLE_OBJECT.GUARDIAN));
 
-  fastify.get(
-    "/links",
-    { preHandler: [verifyUserToken, requireUserRole("GUARDIAN")] },
-    getGuardianLinksController,
-  );
+    // GET /api/v1/guardian/me
+    privateRoutes.get("/me", getGuardianMeController);
 
-  // Student routes (receiving links)
-  fastify.get(
-    "/requests",
-    { preHandler: [verifyUserToken, requireUserRole("STUDENT")] },
-    getStudentLinksController,
-  );
-
-  fastify.post(
-    "/respond",
-    { preHandler: [verifyUserToken, requireUserRole("STUDENT")] },
-    respondToLinkController,
-  );
+    // PATCH /api/v1/guardian/profile
+    privateRoutes.patch("/profile", updateGuardianProfileController);
+  });
 }

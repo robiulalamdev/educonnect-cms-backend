@@ -1,13 +1,14 @@
 import { z } from "zod";
+import { SUBSCRIPTION_TYPES } from "./subscription.types.js";
 
 export const packageQuerySchema = z.object({
-  status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional().default("ACTIVE"),
+  status: z.enum(SUBSCRIPTION_TYPES.PACKAGE_STATUS).optional().default("ACTIVE"),
 });
 
 export const subscribeSchema = z.object({
   package_id: z.string().min(1, "Package ID is required"),
-  billing_cycle: z.enum(["MONTHLY", "QUARTERLY", "YEARLY", "LIFETIME"]),
-  payment_method: z.enum(["BKASH", "NAGAD", "ROCKET", "BANK_TRANSFER", "CASH", "OTHER"]),
+  billing_cycle: z.enum(SUBSCRIPTION_TYPES.BILLING_CYCLES),
+  payment_method: z.enum(SUBSCRIPTION_TYPES.PAYMENT_METHODS),
   transaction_id: z.string().optional(),
 });
 

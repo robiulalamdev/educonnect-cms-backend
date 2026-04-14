@@ -1,8 +1,5 @@
 import { prisma } from "../../config/prisma.js";
 import {
-  UpdateTeacherProfileInput,
-  UpdateStudentProfileInput,
-  UpdateGuardianProfileInput,
   UserListQueryInput,
 } from "./user.schema.js";
 
@@ -127,67 +124,4 @@ export async function getUserById(id: string) {
 
   if (!user) throw new Error("NOT_FOUND");
   return user;
-}
-
-/**
- * Update role-specific Teacher profile
- */
-export async function updateTeacherProfile(
-  userId: string,
-  input: UpdateTeacherProfileInput,
-) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId, deleted_at: null },
-    select: { role: true },
-  });
-
-  if (!user) throw new Error("NOT_FOUND");
-  if (user.role !== "TEACHER") throw new Error("INVALID_ROLE");
-
-  return prisma.teacherProfile.update({
-    where: { user_id: userId },
-    data: input,
-  });
-}
-
-/**
- * Update role-specific Student profile
- */
-export async function updateStudentProfile(
-  userId: string,
-  input: UpdateStudentProfileInput,
-) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId, deleted_at: null },
-    select: { role: true },
-  });
-
-  if (!user) throw new Error("NOT_FOUND");
-  if (user.role !== "STUDENT") throw new Error("INVALID_ROLE");
-
-  return prisma.studentProfile.update({
-    where: { user_id: userId },
-    data: input,
-  });
-}
-
-/**
- * Update role-specific Guardian profile
- */
-export async function updateGuardianProfile(
-  userId: string,
-  input: UpdateGuardianProfileInput,
-) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId, deleted_at: null },
-    select: { role: true },
-  });
-
-  if (!user) throw new Error("NOT_FOUND");
-  if (user.role !== "GUARDIAN") throw new Error("INVALID_ROLE");
-
-  return prisma.guardianProfile.update({
-    where: { user_id: userId },
-    data: input,
-  });
 }

@@ -1,17 +1,12 @@
 import { FastifyRequest, FastifyReply } from "fastify";
-import { linkStudentSchema, respondToLinkSchema } from "./guardian.schema.js";
-import {
-  requestStudentLink,
-  getLinksForGuardian,
-  getLinksForStudent,
-  respondToLinkRequest,
-} from "./guardian.service.js";
+import { updateGuardianProfileSchema } from "./guardian.schema.js";
+import { updateGuardianProfile, getGuardianDetails } from "./guardian.service.js";
 
 /**
- * Handle request to link student
+ * Handle Guardian profile update
  */
-export async function requestLinkController(req: FastifyRequest, reply: FastifyReply) {
-  const body = linkStudentSchema.safeParse(req.body);
+export async function updateGuardianProfileController(req: FastifyRequest, reply: FastifyReply) {
+  const body = updateGuardianProfileSchema.safeParse(req.body);
   if (!body.success) {
     return reply.status(400).send({
       success: false,
@@ -20,74 +15,29 @@ export async function requestLinkController(req: FastifyRequest, reply: FastifyR
   }
 
   try {
-    const data = await requestStudentLink(req.user!.userId, body.data);
-    return reply.send({
-      success: true,
-      message: "Link request sent to student",
-      data,
-    });
+    const profile = await updateGuardianProfile(req.user!.userId, body.data);
+    return reply.send({ success: true, message: "Guardian profile updated", data: profile });
   } catch (err: any) {
-    if (err.message === "STUDENT_NOT_FOUND") {
-      return reply.status(404).send({ success: false, message: "Student not found with provided identifier" });
+    if (err.message === "NOT_FOUND") {
+      return reply.status(404).send({ success: false, message: "User not found" });
     }
-    if (err.message === "CANNOT_LINK_SELF") {
-      return reply.status(400).send({ success: false, message: "You cannot link to yourself" });
-    }
-    if (err.message === "ALREADY_LINKED") {
-      return reply.status(409).send({ success: false, message: "You are already linked with this student" });
-    }
-    if (err.message === "LINK_PENDING") {
-      return reply.status(409).send({ success: false, message: "A link request is already pending with this student" });
+    if (err.message === "INVALID_ROLE") {
+      return reply.status(403).send({ success: false, message: "Access denied: Not a guardian" });
     }
     throw err;
   }
 }
 
 /**
- * Handle listing links for guardian
+ * Handle getting guardian own details
  */
-export async function getGuardianLinksController(req: FastifyRequest, reply: FastifyReply) {
-  const data = await getLinksForGuardian(req.user!.userId);
-  return reply.send({ success: true, data });
-}
-
-/**
- * Handle listing link requests for student
- */
-export async function getStudentLinksController(req: FastifyRequest, reply: FastifyReply) {
-  const data = await getLinksForStudent(req.user!.userId);
-  return reply.send({ success: true, data });
-}
-
-/**
- * Handle student's response to link request
- */
-export async function respondToLinkController(req: FastifyRequest, reply: FastifyReply) {
-  const body = respondToLinkSchema.safeParse(req.body);
-  if (!body.success) {
-    return reply.status(400).send({
-      success: false,
-      errors: body.error.flatten().fieldErrors,
-    });
-  }
-
+export async function getGuardianMeController(req: FastifyRequest, reply: FastifyReply) {
   try {
-    const data = await respondToLinkRequest(req.user!.userId, body.data);
-    const actionLabel = body.data.action === "ACTIVE" ? "approved" : "rejected";
-    return reply.send({
-      success: true,
-      message: `Link request ${actionLabel} successfully`,
-      data,
-    });
+    const data = await getGuardianDetails(req.user!.userId);
+    return reply.send({ success: true, data });
   } catch (err: any) {
-    if (err.message === "LINK_NOT_FOUND") {
-      return reply.status(404).send({ success: false, message: "Link request not found" });
-    }
-    if (err.message === "UNAUTHORIZED") {
-      return reply.status(403).send({ success: false, message: "You are not authorized to respond to this link" });
-    }
-    if (err.message === "LINK_ALREADY_PROCESSED") {
-      return reply.status(400).send({ success: false, message: "This link request has already been processed" });
+    if (err.message === "NOT_FOUND") {
+      return reply.status(404).send({ success: false, message: "Guardian not found" });
     }
     throw err;
   }

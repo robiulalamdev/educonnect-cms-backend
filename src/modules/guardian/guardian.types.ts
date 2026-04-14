@@ -1,19 +1,15 @@
 // ============================================================
 // MODULE: guardian.types.ts
-// Guardian-Student link status constants
+// Guardian-specific types and enums (Derived from enums.prisma)
 // ============================================================
 
-export const GUARDIAN_STUDENT_STATUS_OBJECT = {
-  PENDING: "PENDING",
-  ACTIVE: "ACTIVE",
-  REMOVED: "REMOVED",
-} as const;
-
 export const GUARDIAN_TYPES = {
-  STATUSES: ["PENDING", "ACTIVE", "REMOVED"] as const,
-  STATUS_OBJECT: GUARDIAN_STUDENT_STATUS_OBJECT,
+  // --- Guardian-Student Relation (From enums.prisma) ---
+  LINK_STATUS: {
+    PENDING: "PENDING",
+    ACTIVE: "ACTIVE",
+    REMOVED: "REMOVED",
+  },
 } as const;
 
-// ── Exported Types ─────────────────────────────────────────
-
-export type IGuardianStudentStatus = (typeof GUARDIAN_STUDENT_STATUS_OBJECT)[keyof typeof GUARDIAN_STUDENT_STATUS_OBJECT];
+export type IGuardianLinkStatus = keyof typeof GUARDIAN_TYPES.LINK_STATUS;
