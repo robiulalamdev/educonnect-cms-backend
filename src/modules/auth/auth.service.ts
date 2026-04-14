@@ -3,7 +3,7 @@ import { EncryptJWT, jwtDecrypt } from "jose";
 import crypto from "crypto";
 import { prisma } from "../../config/prisma.js";
 import { env } from "../../config/env.js";
-import { AUTH_TYPES, type IUserRole } from "./auth.types.js";
+import { USER_TYPES, type IUserRole } from "./auth.types.js";
 import type {
   RegisterInput,
   LoginInput,
@@ -506,11 +506,11 @@ export async function updateUserProfile(
   if (avatarFile) {
     // Override owner_type to match the user's actual role for accurate audit trail
     const ownerType =
-      user.role === AUTH_TYPES.USER_ROLE_OBJECT.TEACHER
-        ? AUTH_TYPES.USER_ROLE_OBJECT.TEACHER
-        : user.role === AUTH_TYPES.USER_ROLE_OBJECT.STUDENT
-          ? AUTH_TYPES.USER_ROLE_OBJECT.STUDENT
-          : AUTH_TYPES.USER_ROLE_OBJECT.GUARDIAN;
+      user.role === USER_TYPES.ROLE_OBJECT.TEACHER
+        ? USER_TYPES.ROLE_OBJECT.TEACHER
+        : user.role === USER_TYPES.ROLE_OBJECT.STUDENT
+          ? USER_TYPES.ROLE_OBJECT.STUDENT
+          : USER_TYPES.ROLE_OBJECT.GUARDIAN;
 
     const avatarFileWithFolder: UploadInput = {
       ...avatarFile,

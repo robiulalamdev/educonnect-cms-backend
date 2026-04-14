@@ -30,25 +30,18 @@ export const GENDER_OBJECT = {
 
 // ── Main Types Object ──────────────────────────────────────
 
-export const AUTH_TYPES = {
+export const USER_TYPES = {
   ROLES: ["TEACHER", "STUDENT", "GUARDIAN"] as const,
-
-  STATUS: [
-    "PENDING_VERIFICATION",
-    "ACTIVE",
-    "SUSPENDED",
-    "BANNED",
-  ] as const,
-
+  STATUS: ["PENDING_VERIFICATION", "ACTIVE", "SUSPENDED", "BANNED"] as const,
   GENDERS: ["MALE", "FEMALE", "OTHER"] as const,
 
-  USER_ROLE_OBJECT,
-  USER_STATUS_OBJECT,
-  GENDER_OBJECT,
+  ROLE_OBJECT: USER_ROLE_OBJECT,
+  STATUS_OBJECT: USER_STATUS_OBJECT,
+  GENDER_OBJECT: GENDER_OBJECT,
 } as const;
 
 // ── Exported Types ─────────────────────────────────────────
 
 export type IUserRole = (typeof USER_ROLE_OBJECT)[keyof typeof USER_ROLE_OBJECT];
-export type IUserStatus = (typeof AUTH_TYPES.STATUS)[number];
-export type IGender = (typeof AUTH_TYPES.GENDERS)[number];
+export type IUserStatus = (typeof USER_TYPES.STATUS)[number];
+export type IGender = (typeof USER_TYPES.GENDERS)[number];

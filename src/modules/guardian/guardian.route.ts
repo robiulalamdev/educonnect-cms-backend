@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { verifyUserToken, requireUserRole } from "../auth/auth.middleware.js";
-import { USER_TYPES } from "../user/user.types.js";
+import { USER_TYPES } from "../auth/auth.types.js";
 import { 
   updateGuardianProfileController, 
   getGuardianMeController 

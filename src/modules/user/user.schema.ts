@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { USER_TYPES } from "./user.types.js";
+  import { USER_TYPES } from "../auth/auth.types.js";
 
 // -- User Listing / Search --
 

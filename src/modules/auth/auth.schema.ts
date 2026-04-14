@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AUTH_TYPES } from "./auth.types.js";
+import { USER_TYPES } from "./auth.types.js";
 
 // ── Register ───────────────────────────────────────────────
 
@@ -7,9 +7,9 @@ export const registerSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  role: z.enum(AUTH_TYPES.ROLES),
+  role: z.enum(USER_TYPES.ROLES),
   phone: z.string().optional(),
-  gender: z.enum(AUTH_TYPES.GENDERS).optional(),
+  gender: z.enum(USER_TYPES.GENDERS).optional(),
 });
 
 // ── Login ──────────────────────────────────────────────────
@@ -66,7 +66,7 @@ export const changePasswordSchema = z.object({
 export const updateProfileSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters").optional(),
   phone: z.string().optional(),
-  gender: z.enum(AUTH_TYPES.GENDERS).optional(),
+  gender: z.enum(USER_TYPES.GENDERS).optional(),
   date_of_birth: z.string().datetime({ offset: true }).optional(),
   bio: z.string().max(500, "Bio max 500 characters").optional(),
   country: z.string().optional(),
