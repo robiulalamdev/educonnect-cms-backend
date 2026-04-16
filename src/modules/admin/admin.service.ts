@@ -1,7 +1,6 @@
 import bcrypt from "bcryptjs";
 import { EncryptJWT, jwtDecrypt } from "jose";
 import { prisma } from "../../config/prisma.js";
-import { env } from "../../config/env.js";
 import { IAdminRole } from "./admin.types.js";
 import {
   RegisterAdminInput,
@@ -21,9 +20,7 @@ import {
 import type { UploadInput } from "../../utils/cloudinary-upload.js";
 
 // ── JWT Secrets ────────────────────────────────────────────
-
-const accessSecret = new TextEncoder().encode(env.ADMIN_JWT_ACCESS_SECRET);
-const refreshSecret = new TextEncoder().encode(env.ADMIN_JWT_REFRESH_SECRET);
+import { jwtConfig } from "../../config/jwt.js";
 
 // ── JWT Payload ────────────────────────────────────────────
 
@@ -41,8 +38,8 @@ export async function generateAdminAccessToken(
   return new EncryptJWT({ ...payload })
     .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
     .setIssuedAt()
-    .setExpirationTime(env.ADMIN_JWT_ACCESS_EXPIRES)
-    .encrypt(accessSecret);
+    .setExpirationTime(jwtConfig.admin.expires.access)
+    .encrypt(jwtConfig.admin.accessSecret);
 }
 
 export async function generateAdminTokens(
@@ -52,14 +49,14 @@ export async function generateAdminTokens(
     new EncryptJWT({ ...payload })
       .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
       .setIssuedAt()
-      .setExpirationTime(env.ADMIN_JWT_ACCESS_EXPIRES)
-      .encrypt(accessSecret),
+      .setExpirationTime(jwtConfig.admin.expires.access)
+      .encrypt(jwtConfig.admin.accessSecret),
 
     new EncryptJWT({ ...payload })
       .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
       .setIssuedAt()
-      .setExpirationTime(env.ADMIN_JWT_REFRESH_EXPIRES)
-      .encrypt(refreshSecret),
+      .setExpirationTime(jwtConfig.admin.expires.refresh)
+      .encrypt(jwtConfig.admin.refreshSecret),
   ]);
 
   return { accessToken, refreshToken };
@@ -71,7 +68,7 @@ export async function refreshAdminToken(refreshToken: string) {
   try {
     const { payload: decrypted } = await jwtDecrypt(
       refreshToken,
-      refreshSecret,
+      jwtConfig.admin.refreshSecret,
     );
     payload = decrypted as unknown as JwtPayload;
   } catch {
@@ -175,7 +172,7 @@ export async function loginAdmin(input: LoginAdminInput) {
     where: { email: input.email },
   });
 
-  if (!admin) throw new Error("INVALID_CREDENTIALS");
+  if (!admin) throw new Error("ACCOUNT_NOT_FOUND");
   if (admin.status === "INACTIVE") throw new Error("ACCOUNT_SUSPENDED");
 
   const valid = await bcrypt.compare(input.password, admin.password);

@@ -9,8 +9,8 @@
 // const prisma = new PrismaClient({ adapter });
 
 // async function createSuperAdmin() {
-//   const email = "info@visittome.com";
-//   const password = "Admin@123456";
+//   const email = "superadmin@cms.com";
+//   const password = "SuperAdmin@123$";
 //   const name = "Robiul Alam";
 
 //   const existing = await prisma.admin.findUnique({ where: { email } });
@@ -25,11 +25,10 @@
 
 //   const admin = await prisma.admin.create({
 //     data: {
-//       name,
+//       full_name: name,
 //       email,
 //       password: passwordHash,
 //       role: "SUPER_ADMIN",
-//       isActive: true,
 //     },
 //   });
 

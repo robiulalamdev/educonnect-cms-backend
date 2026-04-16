@@ -20,11 +20,10 @@ import {
   updateAdminById,
   deleteAdminById,
 } from "./admin.service.js";
-import { getAuditLogs, createAuditLog } from "./audit.service.js";
-import { AUDIT_ACTION_OBJECT } from "./admin.types.js";
+import { getAuditLogs } from "./audit.service.js";
 import {
-  accessCookieOptions,
-  refreshCookieOptions,
+  adminAccessCookieOptions,
+  adminRefreshCookieOptions,
 } from "./admin.middleware.js";
 import { env } from "../../config/env.js";
 import { parseMultipart } from "../../utils/parse-multipart.js";
@@ -50,8 +49,8 @@ export async function loginController(
     const { admin, tokens } = await loginAdmin(body.data);
 
     reply
-      .setCookie(COOKIE_ACCESS, tokens.accessToken, accessCookieOptions)
-      .setCookie(COOKIE_REFRESH, tokens.refreshToken, refreshCookieOptions);
+      .setCookie(COOKIE_ACCESS, tokens.accessToken, adminAccessCookieOptions)
+      .setCookie(COOKIE_REFRESH, tokens.refreshToken, adminRefreshCookieOptions);
 
     return reply.status(200).send({
       success: true,
@@ -59,6 +58,11 @@ export async function loginController(
       data: { admin },
     });
   } catch (err: any) {
+    if (err.message === "ACCOUNT_NOT_FOUND")
+      return reply.status(404).send({
+        success: false,
+        message: "Account not found",
+      });
     if (err.message === "ACCOUNT_SUSPENDED")
       return reply.status(403).send({
         success: false,
@@ -97,7 +101,7 @@ export async function refreshController(
 
   try {
     const tokens = await refreshAdminToken(refreshToken);
-    reply.setCookie(COOKIE_ACCESS, tokens.accessToken, accessCookieOptions);
+    reply.setCookie(COOKIE_ACCESS, tokens.accessToken, adminAccessCookieOptions);
     return reply.send({ success: true, message: "Session refreshed" });
   } catch {
     reply

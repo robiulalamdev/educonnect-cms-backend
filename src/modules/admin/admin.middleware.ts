@@ -3,13 +3,13 @@ import { jwtDecrypt } from "jose";
 import { env } from "../../config/env.js";
 import { IAdminRole } from "./admin.types.js";
 import { JwtPayload, generateAdminAccessToken } from "./admin.service.js";
+import { jwtConfig } from "../../config/jwt.js";
 
-const accessSecret = new TextEncoder().encode(env.ADMIN_JWT_ACCESS_SECRET);
-const refreshSecret = new TextEncoder().encode(env.ADMIN_JWT_REFRESH_SECRET);
+
 
 // ── Cookie options ─────────────────────────────────────────
 
-export const accessCookieOptions = {
+export const adminAccessCookieOptions = {
   httpOnly: true,
   secure: env.NODE_ENV === "production",
   sameSite: "lax" as const,
@@ -18,7 +18,7 @@ export const accessCookieOptions = {
   signed: true,
 };
 
-export const refreshCookieOptions = {
+export const adminRefreshCookieOptions = {
   httpOnly: true,
   secure: env.NODE_ENV === "production",
   sameSite: "lax" as const,
@@ -38,12 +38,12 @@ declare module "fastify" {
 // ── Helpers ────────────────────────────────────────────────
 
 async function decryptAccessToken(token: string): Promise<JwtPayload> {
-  const { payload } = await jwtDecrypt(token, accessSecret);
+  const { payload } = await jwtDecrypt(token, jwtConfig.admin.accessSecret);
   return payload as unknown as JwtPayload;
 }
 
 async function decryptRefreshToken(token: string): Promise<JwtPayload> {
-  const { payload } = await jwtDecrypt(token, refreshSecret);
+  const { payload } = await jwtDecrypt(token, jwtConfig.admin.refreshSecret);
   return payload as unknown as JwtPayload;
 }
 
@@ -70,6 +70,9 @@ export async function verifyAdminToken(
   const accessToken = getSignedCookie(req, env.ADMIN_COOKIE_ACCESS_NAME);
   const refreshToken = getSignedCookie(req, env.ADMIN_COOKIE_REFRESH_NAME);
 
+  // console.log(accessToken)
+  // console.log(refreshToken)
+
   // helper: try to restore session from refresh token
   async function restoreFromRefresh(): Promise<boolean> {
     if (!refreshToken) return false;
@@ -82,7 +85,7 @@ export async function verifyAdminToken(
       reply.setCookie(
         env.ADMIN_COOKIE_ACCESS_NAME,
         newAccessToken,
-        accessCookieOptions,
+        adminAccessCookieOptions,
       );
       req.admin = payloadData as JwtPayload;
       return true;
@@ -105,6 +108,7 @@ export async function verifyAdminToken(
     const restored = await restoreFromRefresh();
     if (restored) return;
   }
+
 
   // nothing worked — clear and reject
   clearAuthCookies(reply);
