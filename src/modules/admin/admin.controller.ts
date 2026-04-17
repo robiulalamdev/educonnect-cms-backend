@@ -202,9 +202,11 @@ export async function changePasswordController(
   reply: FastifyReply,
 ) {
   const body = changePasswordSchema.safeParse(req.body);
+
   if (!body.success)
     return reply.status(400).send({
       success: false,
+      message: "Validation failed",
       errors: body.error.flatten().fieldErrors,
     });
 
