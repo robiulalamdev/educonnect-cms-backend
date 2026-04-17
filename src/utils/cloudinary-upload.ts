@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomBytes } from "crypto";
 import {
   cloudinary,
   CldFolder,
@@ -134,9 +134,10 @@ export async function uploadToCloudinary(
   const ext = getExtension(mimetype, originalFilename);
   const resourceType = MIME_TO_RESOURCE_TYPE[mimetype] ?? "raw";
 
-  // public_id = folder/coachly-{uuid}-{safe-name}
+  // public_id = folder/{safe-name}-{short_id}
   // extension is handled by Cloudinary automatically
-  const public_id = `${folder}/coachly-${randomUUID()}-${safeName}`;
+  const shortId = randomBytes(3).toString("hex");
+  const public_id = `${folder}/${safeName}-${shortId}`;
 
   const result = await uploadBufferToCloudinary(buffer, {
     public_id: public_id,
@@ -150,7 +151,7 @@ export async function uploadToCloudinary(
   return {
     url: result.secure_url,
     public_id: result.public_id,
-    filename: `coachly-${safeName}.${ext}`,
+    filename: `${safeName}-${shortId}.${ext}`,
     mimetype,
     size,
     ...(resourceType === "image" && {

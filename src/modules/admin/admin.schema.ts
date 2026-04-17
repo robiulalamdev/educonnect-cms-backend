@@ -24,7 +24,7 @@ export const changePasswordSchema = z.object({
 
 export const updateOwnProfileSchema = z.object({
   full_name: z.string().min(2).optional(),
-  email: z.string().email().optional(),
+  // email: z.string().email().optional(),
 });
 
 // ── Admin Management ───────────────────────────────────────

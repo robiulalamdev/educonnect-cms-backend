@@ -13,7 +13,7 @@ const safeMessageSelect = {
     select: {
       id: true,
       full_name: true,
-      avatar: { select: { url: true } }
+      avatar: { select: { key: true } }
     }
   },
   media: {
@@ -73,7 +73,7 @@ export async function getChatList(userId: string, query: ChatQueryInput) {
               select: {
                 id: true,
                 full_name: true,
-                avatar: { select: { url: true } }
+                avatar: { select: { key: true } }
               }
             }
           }

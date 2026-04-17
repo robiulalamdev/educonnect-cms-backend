@@ -155,7 +155,7 @@ async function uploadUserAvatar(
     await prisma.media.update({
       where: { id: existingAvatar.id },
       data: {
-        url: result.url,
+        // url: result.url,
         key: result.public_id,
         filename: result.filename,
         mime_type: result.mimetype,
@@ -171,7 +171,7 @@ async function uploadUserAvatar(
 
   const media = await prisma.media.create({
     data: {
-      url: result.url,
+      // url: result.url,
       key: result.public_id,
       filename: result.filename,
       mime_type: result.mimetype,

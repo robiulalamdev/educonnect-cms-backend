@@ -1,6 +1,5 @@
 model Media {
     id               String         @id @default(cuid())
-    url              String
     key              String         @unique
     filename         String
     mime_type        String

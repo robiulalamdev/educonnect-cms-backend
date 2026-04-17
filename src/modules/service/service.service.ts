@@ -31,7 +31,7 @@ const safeServiceSelect = {
       id: true,
       full_name: true,
       avatar: {
-        select: { url: true }
+        select: { key: true }
       }
     }
   },

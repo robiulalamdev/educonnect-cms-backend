@@ -35,7 +35,7 @@ export async function getTeacherDetails(id: string) {
     select: {
       id: true,
       full_name: true,
-      avatar: { select: { url: true } },
+      avatar: { select: { key: true } },
       teacher_profile: true,
     }
   });

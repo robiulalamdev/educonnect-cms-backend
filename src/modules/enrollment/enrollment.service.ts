@@ -27,7 +27,7 @@ const safeEnrollmentSelect = {
         select: {
           id: true,
           full_name: true,
-          avatar: { select: { url: true } }
+          avatar: { select: { key: true } }
         }
       }
     }
@@ -54,7 +54,7 @@ const safeEnrollmentSelect = {
       transaction_id: true,
       status: true,
       created_at: true,
-      screenshot: { select: { url: true } }
+      screenshot: { select: { key: true } }
     }
   }
 } as const;

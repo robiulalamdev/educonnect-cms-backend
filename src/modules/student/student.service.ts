@@ -35,7 +35,7 @@ export async function getStudentDetails(userId: string) {
     select: {
       id: true,
       full_name: true,
-      avatar: { select: { url: true } },
+      avatar: { select: { key: true } },
       student_profile: {
         include: {
           education_level: true

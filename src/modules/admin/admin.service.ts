@@ -104,7 +104,7 @@ const safeAdminSelect = {
   avatar: {
     select: {
       id: true,
-      url: true,
+      filename: true,
       key: true, // public_id — used for Cloudinary delete/replace
       mime_type: true,
       size: true,
@@ -131,7 +131,7 @@ async function uploadAvatar(
     await prisma.media.update({
       where: { id: existingAvatar.id },
       data: {
-        url: result.url,
+        // url: result.url,
         key: result.public_id,
         mime_type: result.mimetype,
         size: result.size,
@@ -147,7 +147,7 @@ async function uploadAvatar(
 
   const media = await prisma.media.create({
     data: {
-      url: result.url,
+      // url: result.url,
       key: result.public_id,
       filename: result.filename,
       mime_type: result.mimetype,
@@ -226,12 +226,12 @@ export async function updateOwnProfile(
   });
   if (!admin) throw new Error("NOT_FOUND");
 
-  if (input.email && input.email !== admin.email) {
-    const taken = await prisma.admin.findUnique({
-      where: { email: input.email },
-    });
-    if (taken) throw new Error("EMAIL_TAKEN");
-  }
+  // if (input.email && input.email !== admin.email) {
+  //   const taken = await prisma.admin.findUnique({
+  //     where: { email: input.email },
+  //   });
+  //   if (taken) throw new Error("EMAIL_TAKEN");
+  // }
 
   if (avatarFile) {
     await uploadAvatar(adminId, avatarFile, admin.avatar ?? undefined);

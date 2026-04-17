@@ -35,7 +35,7 @@ export async function getGuardianDetails(userId: string) {
     select: {
       id: true,
       full_name: true,
-      avatar: { select: { url: true } },
+      avatar: { select: { key: true } },
       guardian_profile: true,
     }
   });
