@@ -3,33 +3,40 @@ import { env } from "../../config/env.js";
 import { prisma } from "../../config/prisma.js";
 
 class NotificationService {
+  private initialized = false;
+
   constructor() {
-    if (env.FIREBASE_PRIVATE_KEY && env.FIREBASE_CLIENT_EMAIL) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: env.FIREBASE_PROJECT_ID,
-          clientEmail: env.FIREBASE_CLIENT_EMAIL,
-          privateKey: env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-        }),
-      });
+    try {
+      if (env.FIREBASE_PRIVATE_KEY && env.FIREBASE_CLIENT_EMAIL) {
+        admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId: env.FIREBASE_PROJECT_ID,
+            clientEmail: env.FIREBASE_CLIENT_EMAIL,
+            privateKey: env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+          }),
+        });
+        this.initialized = true;
+      }
+    } catch (err) {
+      console.error("[FCM] Initialization failed:", err);
     }
   }
 
   /**
-   * Send push notification to a specific FCM token
+   * Send push notification to a specific FCM token.
+   * Always returns gracefully — never throws.
    */
   async sendToToken(token: string, title: string, body: string, data?: Record<string, string>) {
+    if (!this.initialized) return null;
     try {
-      const result = await admin.messaging().send({
+      return await admin.messaging().send({
         notification: { title, body },
         data: data || {},
         token,
       });
-      return result;
     } catch (error: any) {
-      // Remove invalid tokens
       if (error.code === "messaging/registration-token-not-registered") {
-        await prisma.userDevice.deleteMany({ where: { fcm_token: token } });
+        await prisma.userDevice.deleteMany({ where: { fcm_token: token } }).catch(() => {});
       }
       console.error("[FCM] Send failed:", error.message);
       return null;
@@ -37,50 +44,60 @@ class NotificationService {
   }
 
   /**
-   * Send push notification to all active devices of a user
+   * Send push notification to all active devices of a user.
+   * Always returns gracefully — never throws.
    */
   async sendToUser(userId: string, title: string, body: string, data?: Record<string, string>) {
-    const devices = await prisma.userDevice.findMany({
-      where: { user_id: userId, is_active: true },
-      select: { fcm_token: true },
-    });
+    if (!this.initialized) return null;
 
-    if (devices.length === 0) return null;
+    try {
+      const devices = await prisma.userDevice.findMany({
+        where: { user_id: userId, is_active: true },
+        select: { fcm_token: true },
+      }).catch(() => []);
 
-    const results = await Promise.allSettled(
-      devices.map((d) =>
-        admin.messaging().send({
-          notification: { title, body },
-          data: data || {},
-          token: d.fcm_token,
-        })
-      )
-    );
+      if (devices.length === 0) return null;
 
-    // Clean up invalid tokens
-    const invalidTokens: string[] = [];
-    results.forEach((r, i) => {
-      if (r.status === "rejected") {
-        const err = r.reason as any;
-        if (err.code === "messaging/registration-token-not-registered") {
-          invalidTokens.push(devices[i].fcm_token);
+      const results = await Promise.allSettled(
+        devices.map((d) =>
+          admin.messaging().send({
+            notification: { title, body },
+            data: data || {},
+            token: d.fcm_token,
+          })
+        )
+      );
+
+      // Clean up invalid tokens
+      const invalidTokens: string[] = [];
+      results.forEach((r, i) => {
+        if (r.status === "rejected") {
+          const err = r.reason as any;
+          if (err.code === "messaging/registration-token-not-registered") {
+            invalidTokens.push(devices[i].fcm_token);
+          }
         }
-      }
-    });
-
-    if (invalidTokens.length > 0) {
-      await prisma.userDevice.deleteMany({
-        where: { fcm_token: { in: invalidTokens } },
       });
-    }
 
-    return results;
+      if (invalidTokens.length > 0) {
+        await prisma.userDevice.deleteMany({
+          where: { fcm_token: { in: invalidTokens } },
+        }).catch(() => {});
+      }
+
+      return results;
+    } catch (err) {
+      console.error("[FCM] sendToUser failed:", err);
+      return null;
+    }
   }
 
   /**
-   * Send notification to a topic
+   * Send notification to a topic.
+   * Always returns gracefully — never throws.
    */
   async sendToTopic(topic: string, title: string, body: string, data?: Record<string, string>) {
+    if (!this.initialized) return null;
     try {
       return await admin.messaging().send({
         notification: { title, body },

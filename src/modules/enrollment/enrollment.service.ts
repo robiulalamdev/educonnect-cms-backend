@@ -10,8 +10,7 @@ import { ENROLLMENT_TYPES } from "./enrollment.types.js";
 import { BATCH_TYPES } from "../batch/batch.types.js";
 import { DropdownQueryInput } from "../education/education.schema.js";
 import { emailService } from "../shared/email.service.js";
-import { notificationService } from "../shared/notification.service.js";
-import { createNotification } from "../notification/notification.service.js";
+import { createNotification, notifyUser } from "../notification/notification.service.js";
 import { socketManager } from "../../config/socket.js";
 import { getAdminStats, getTeacherStats } from "../statistics/statistics.service.js";
 import { uploadToCloudinary, type UploadInput } from "../../utils/cloudinary-upload.js";
@@ -242,22 +241,26 @@ export async function updatePaymentStatus(actorId: string, is_admin: boolean, pa
     // ── Post-Transaction Hooks (Background) ──
     if (input.status === ENROLLMENT_TYPES.PAYMENT_STATUS_OBJECT.APPROVED) {
       const studentUser = payment.enrollment.student.user;
-      
-      // 1. Email Notification
-      emailService.sendEnrollmentApprovalEmail(
-        studentUser.email, 
-        studentUser.full_name, 
-        payment.enrollment.batch.name
-      ).catch(console.error);
 
-      // 2. Push Notification
-      notificationService.sendToUser(
-        studentUser.id,
-        "Enrollment Approved! 🎉",
-        `You are now enrolled in ${payment.enrollment.batch.name}`
-      ).catch(console.error);
+      // 1. Email + Push Notification
+      notifyUser({
+        user_id: studentUser.id,
+        type: "PAYMENT_APPROVED",
+        title: "Payment Approved",
+        body: `Your payment for ${payment.enrollment.batch.name} has been approved`,
+        reference_type: "payment",
+        reference_id: paymentId,
+        category: "payment",
+        email: {
+          send: (to) => emailService.sendPaymentApprovedEmail(
+            to, studentUser.full_name, payment.enrollment.batch.name,
+            Number(payment.amount), payment.enrollment.batch.service.currency
+          ),
+        },
+        email_to: studentUser.email,
+      }).catch(() => {});
 
-      // 3. Real-time Dashboard Refresh (Stats)
+      // 2. Real-time Dashboard Refresh (Stats)
       getAdminStats().then(stats => {
         socketManager.emitStatsUpdate(stats);
       }).catch(console.error);
@@ -397,7 +400,7 @@ export async function updateEnrollmentStatus(
       }
     }
 
-    // ── Notifications ──
+    // ── Notifications (in-app + email + push) ──
     const statusMessages: Record<string, { type: string; title: string; body: string }> = {
       APPROVED: { type: "JOIN_REQUEST_ACCEPTED", title: "Enrollment Approved", body: `You are now enrolled in ${enrollment.batch.name}` },
       REJECTED: { type: "JOIN_REQUEST_REJECTED", title: "Enrollment Rejected", body: `Your enrollment in ${enrollment.batch.name} was rejected` },
@@ -407,12 +410,20 @@ export async function updateEnrollmentStatus(
     };
 
     if (statusMessages[newStatus]) {
-      createNotification({
+      const msg = statusMessages[newStatus];
+      notifyUser({
         user_id: enrollment.student.user_id,
-        ...statusMessages[newStatus],
+        ...msg,
         reference_type: "enrollment",
         reference_id: enrollmentId,
-      }).catch(console.error);
+        category: "enrollment",
+        email: {
+          send: (to) => newStatus === "APPROVED"
+            ? emailService.sendEnrollmentApprovalEmail(to, enrollment.student.user.full_name, enrollment.batch.name)
+            : emailService.sendEnrollmentRejectionEmail(to, enrollment.student.user.full_name, enrollment.batch.name),
+        },
+        email_to: enrollment.student.user.email,
+      }).catch(() => {});
     }
 
     return updated;
