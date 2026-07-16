@@ -21,6 +21,7 @@ model Media {
     chat_avatar        Chat?
     payment_screenshot PaymentRecord?
     user_avatar        User?
+    story              Story?
 
     // one-to-many FK (Media belongs to Post or Message)
     post_id    String?

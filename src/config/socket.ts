@@ -102,6 +102,8 @@ export class SocketManager {
         socket.join(`post_${postId}`);
       });
 
+      socket.join("stories_feed");
+
       socket.on("leave_post", (postId: string) => {
         socket.leave(`post_${postId}`);
       });

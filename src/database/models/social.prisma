@@ -32,3 +32,36 @@ model Block {
     @@unique([blocker_id, blocked_id])
     @@map("blocks")
 }
+
+// Stories (Instagram/Facebook style, 24hr expiry)
+model Story {
+    id          String    @id @default(cuid())
+    user_id     String
+    user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    content     String?   @db.Text
+    media_id    String?   @unique
+    media       Media?    @relation(fields: [media_id], references: [id], onDelete: SetNull)
+    media_type  String?   // IMAGE, VIDEO
+    bg_color    String?   // for text-only stories
+    expires_at  DateTime  // 24 hours from creation
+    created_at  DateTime  @default(now())
+
+    views       StoryView[]
+
+    @@index([user_id])
+    @@index([expires_at])
+    @@map("stories")
+}
+
+model StoryView {
+    id          String   @id @default(cuid())
+    story_id    String
+    story       Story    @relation(fields: [story_id], references: [id], onDelete: Cascade)
+    user_id     String
+    user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    viewed_at   DateTime @default(now())
+
+    @@unique([story_id, user_id])
+    @@index([story_id])
+    @@map("story_views")
+}

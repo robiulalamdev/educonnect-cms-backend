@@ -58,6 +58,8 @@ model User {
     reviews_given     Review[]
     comments          Comment[]
     likes             Like[]
+    stories           Story[]
+    story_views       StoryView[]
     blocks_given      Block[]              @relation("blocker")
     blocks_received   Block[]              @relation("blocked")
     admin_notes       AdminNote[]

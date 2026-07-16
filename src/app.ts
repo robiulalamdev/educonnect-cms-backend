@@ -23,6 +23,7 @@ import { enrollmentRoutes } from "./modules/enrollment/enrollment.route.js";
 import { postRoutes } from "./modules/post/post.route.js";
 import { commentRoutes } from "./modules/comment/comment.route.js";
 import { likeRoutes } from "./modules/like/like.route.js";
+import { storyRoutes } from "./modules/story/story.route.js";
 import { chatRoutes } from "./modules/chat/chat.route.js";
 import { statisticsRoutes } from "./modules/statistics/statistics.route.js";
 
@@ -103,6 +104,7 @@ export function buildApp() {
   app.register(postRoutes, { prefix: "/api/v1/posts" });
   app.register(commentRoutes, { prefix: "/api/v1/posts" });
   app.register(likeRoutes, { prefix: "/api/v1" });
+  app.register(storyRoutes, { prefix: "/api/v1/stories" });
   app.register(chatRoutes, { prefix: "/api/v1/chats" });
   app.register(statisticsRoutes, { prefix: "/api/v1/statistics" });
 
