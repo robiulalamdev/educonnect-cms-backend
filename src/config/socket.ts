@@ -98,6 +98,14 @@ export class SocketManager {
         });
       });
 
+      socket.on("join_post", (postId: string) => {
+        socket.join(`post_${postId}`);
+      });
+
+      socket.on("leave_post", (postId: string) => {
+        socket.leave(`post_${postId}`);
+      });
+
       socket.on("disconnect", () => {
         console.log(`[Socket] User disconnected: ${userId}`);
       });

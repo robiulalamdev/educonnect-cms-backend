@@ -21,6 +21,8 @@ import { serviceRoutes } from "./modules/service/service.route.js";
 import { batchRoutes } from "./modules/batch/batch.route.js";
 import { enrollmentRoutes } from "./modules/enrollment/enrollment.route.js";
 import { postRoutes } from "./modules/post/post.route.js";
+import { commentRoutes } from "./modules/comment/comment.route.js";
+import { likeRoutes } from "./modules/like/like.route.js";
 import { chatRoutes } from "./modules/chat/chat.route.js";
 import { statisticsRoutes } from "./modules/statistics/statistics.route.js";
 
@@ -99,6 +101,8 @@ export function buildApp() {
   app.register(batchRoutes, { prefix: "/api/v1/batches" });
   app.register(enrollmentRoutes, { prefix: "/api/v1/enrollments" });
   app.register(postRoutes, { prefix: "/api/v1/posts" });
+  app.register(commentRoutes, { prefix: "/api/v1/posts" });
+  app.register(likeRoutes, { prefix: "/api/v1" });
   app.register(chatRoutes, { prefix: "/api/v1/chats" });
   app.register(statisticsRoutes, { prefix: "/api/v1/statistics" });
 

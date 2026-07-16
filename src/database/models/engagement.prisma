@@ -1,111 +1,146 @@
 // ============================================================
 // MODULE: engagement.prisma
-// Reviews, notifications, email queue
+// Comments, Likes, Notifications, Reviews, etc.
 // ============================================================
 
-// Students/guardians review a service after enrollment
-// Locked to real enrollment — no fake reviews
-model Review {
-    id                 String       @id @default(cuid())
-    service_id         String
-    service            Service      @relation(fields: [service_id], references: [id], onDelete: Cascade)
-    reviewer_id        String
-    reviewer           User         @relation(fields: [reviewer_id], references: [id], onDelete: Cascade)
-    enrollment_id      String       @unique
-    enrollment         Enrollment   @relation(fields: [enrollment_id], references: [id])
-    rating             Int // 1–5
-    comment            String?      @db.Text
-    status             ReviewStatus @default(VISIBLE)
-    teacher_reply      String?      @db.Text
-    teacher_replied_at DateTime?
-    created_at         DateTime     @default(now())
-    updated_at         DateTime     @updatedAt
+// Comments on posts
+model Comment {
+    id          String   @id @default(cuid())
+    post_id     String
+    post        Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+    author_id   String
+    author      User     @relation(fields: [author_id], references: [id], onDelete: Cascade)
+    content     String   @db.Text
+    parent_id   String?  // For nested replies
+    created_at  DateTime @default(now())
+    updated_at  DateTime @updatedAt
+    deleted_at  DateTime?
 
-    @@unique([service_id, reviewer_id])
-    @@index([service_id])
-    @@map("reviews")
+    replies     Comment[] @relation("CommentReplies")
+    parent      Comment?  @relation("CommentReplies", fields: [parent_id], references: [id])
+    likes       Like[]
+
+    @@index([post_id])
+    @@index([author_id])
+    @@index([parent_id])
+    @@map("comments")
 }
 
-// All in-app and email notifications in one table
+// Likes on posts and comments
+model Like {
+    id          String   @id @default(cuid())
+    user_id     String
+    user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    post_id     String?
+    post        Post?    @relation(fields: [post_id], references: [id], onDelete: Cascade)
+    comment_id  String?
+    comment     Comment? @relation(fields: [comment_id], references: [id], onDelete: Cascade)
+    created_at  DateTime @default(now())
+
+    @@unique([user_id, post_id])
+    @@unique([user_id, comment_id])
+    @@index([post_id])
+    @@index([comment_id])
+    @@map("likes")
+}
+
+// ── Notification model ──────────────────────────────────────
 model Notification {
-    id             String              @id @default(cuid())
-    user_id        String
-    user           User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
-    type           NotificationType
-    channel        NotificationChannel @default(IN_APP)
-    title          String
-    body           String              @db.Text
-    // polymorphic reference to what triggered the notification
-    reference_type String? // "enrollment" | "payment" | "task" | "note" | "announcement"
-    reference_id   String?
-    is_read        Boolean             @default(false)
-    read_at        DateTime?
-    email_sent     Boolean             @default(false)
-    email_sent_at  DateTime?
-    created_at     DateTime            @default(now())
+    id              String             @id @default(cuid())
+    user_id         String
+    user            User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    type            NotificationType
+    channel         NotificationChannel @default(IN_APP)
+    title           String
+    body            String             @db.Text
+    reference_type  String?
+    reference_id    String?
+    is_read         Boolean            @default(false)
+    read_at         DateTime?
+    email_sent      Boolean            @default(false)
+    created_at      DateTime           @default(now())
 
     @@index([user_id, is_read])
-    @@index([created_at])
+    @@index([user_id, created_at])
     @@map("notifications")
 }
 
-// Async email sending queue — processed by background worker
-model EmailQueue {
-    id           String    @id @default(cuid())
-    to_email     String
-    to_name      String?
-    subject      String
-    template     String // template key e.g. "payment_approved", "account_approved"
-    payload      Json // template variables
-    attempts     Int       @default(0)
-    max_attempts Int       @default(3)
-    sent         Boolean   @default(false)
-    sent_at      DateTime?
-    error        String?   @db.Text
-    created_at   DateTime  @default(now())
-
-    @@index([sent, attempts])
-    @@map("email_queue")
-}
-
-// Firebase Cloud Messaging tokens for push notifications
-// Supports both web (browser push) and native app (Android/iOS) tokens
-// FCM handles both — same token format, different registration flow
+// ── Device tokens for push notifications ────────────────────
 model UserDevice {
-    id           String   @id @default(cuid())
-    user_id      String
-    user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-    fcm_token    String   @unique // FCM registration token (works for web + mobile)
-    platform     String   // "web" | "android" | "ios"
-    device_info  String?  // browser name, device model, etc.
-    is_active    Boolean  @default(true)
-    created_at   DateTime @default(now())
-    last_used_at DateTime @default(now())
+    id              String   @id @default(cuid())
+    user_id         String
+    user            User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    fcm_token       String   @unique
+    platform        String?  // ios, android, web
+    device_info     String?  @db.Text
+    is_active       Boolean  @default(true)
+    last_used_at    DateTime @default(now())
+    created_at      DateTime @default(now())
 
-    @@index([user_id, is_active])
-    @@index([fcm_token])
+    @@index([user_id])
     @@map("user_devices")
 }
 
-// User notification preferences — what they want to receive
+// ── Notification preferences ────────────────────────────────
 model NotificationPreference {
-    id                       String  @id @default(cuid())
-    user_id                  String  @unique
-    user                     User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
-    // Toggle per channel
-    in_app_enabled           Boolean @default(true)
-    email_enabled            Boolean @default(true)
-    push_enabled             Boolean @default(true)
-    // Toggle per category
-    enrollment_notifications Boolean @default(true)
-    payment_notifications    Boolean @default(true)
+    id              String   @id @default(cuid())
+    user_id         String   @unique
+    user            User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    in_app_enabled  Boolean  @default(true)
+    email_enabled   Boolean  @default(true)
+    push_enabled    Boolean  @default(true)
+    // Category toggles
+    enrollment_notifications Boolean  @default(true)
+    payment_notifications    Boolean  @default(true)
     announcement_notifications Boolean @default(true)
-    task_notifications       Boolean @default(true)
-    attendance_notifications Boolean @default(true)
-    message_notifications    Boolean @default(true)
-    social_notifications     Boolean @default(true) // follow, guardian link
-    created_at               DateTime @default(now())
-    updated_at               DateTime @updatedAt
+    task_notifications        Boolean @default(true)
+    attendance_notifications  Boolean @default(true)
+    message_notifications     Boolean @default(true)
+    social_notifications      Boolean @default(true)
+    created_at      DateTime @default(now())
+    updated_at      DateTime @updatedAt
 
     @@map("notification_preferences")
+}
+
+model EmailQueue {
+    id          String   @id @default(cuid())
+    to_email    String
+    to_name     String?
+    subject     String
+    template    String
+    payload     Json?
+    attempts    Int      @default(0)
+    max_attempts Int     @default(3)
+    sent        Boolean  @default(false)
+    error       String?  @db.Text
+    created_at  DateTime @default(now())
+    sent_at     DateTime?
+
+    @@index([to_email])
+    @@index([template, sent])
+    @@map("email_queue")
+}
+
+// Reviews on services
+model Review {
+    id              String       @id @default(cuid())
+    service_id      String
+    service         Service      @relation(fields: [service_id], references: [id], onDelete: Cascade)
+    reviewer_id     String
+    reviewer        User         @relation(fields: [reviewer_id], references: [id], onDelete: Cascade)
+    enrollment_id   String?      @unique // one review per enrollment
+    enrollment      Enrollment?  @relation(fields: [enrollment_id], references: [id])
+    rating          Int          // 1-5
+    comment         String?      @db.Text
+    status          ReviewStatus @default(VISIBLE)
+    teacher_reply   String?      @db.Text
+    teacher_replied_at DateTime?
+    created_at      DateTime     @default(now())
+    updated_at      DateTime     @updatedAt
+
+    @@unique([service_id, reviewer_id])
+    @@index([service_id])
+    @@index([reviewer_id])
+    @@map("reviews")
 }

@@ -56,6 +56,8 @@ model User {
     read_receipts     MessageReadReceipt[]
     notifications     Notification[]
     reviews_given     Review[]
+    comments          Comment[]
+    likes             Like[]
     blocks_given      Block[]              @relation("blocker")
     blocks_received   Block[]              @relation("blocked")
     admin_notes       AdminNote[]

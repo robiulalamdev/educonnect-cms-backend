@@ -36,6 +36,8 @@ model Post {
     subjects PostSubject[]
     levels   PostLevel[]
     media    Media[]       @relation("PostMedia")
+    comments Comment[]
+    likes    Like[]
 
     @@index([author_id])
     @@index([type])
