@@ -171,7 +171,7 @@ export async function verifyEmailController(
       errors: body.error.flatten().fieldErrors,
     });
   try {
-    await verifyEmail(body.data.token);
+    await verifyEmail(body.data.email, body.data.token);
     return reply.send({
       success: true,
       message: "Email verified successfully. You can now log in.",
@@ -306,9 +306,6 @@ export async function getMeController(
     const user = await getUserProfile(req.user!.userId);
     return reply.send({ success: true, data: user });
   } catch (err: any) {
-    
-    
-    
     if (err.message === "ACCOUNT_SUSPENDED") {
       reply
         .clearCookie(COOKIE_ACCESS, { path: "/" })

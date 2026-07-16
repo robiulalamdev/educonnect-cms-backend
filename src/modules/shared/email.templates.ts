@@ -77,7 +77,7 @@ export function verificationEmail(code: string): { subject: string; html: string
       <div style="text-align: center; margin: 24px 0;">
         <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #6366f1;">${code}</span>
       </div>
-      <p style="color: #6b7280; font-size: 14px;">This code will expire in 10 minutes. If you didn't create an account, you can safely ignore this email.</p>
+      <p style="color: #6b7280; font-size: 14px;">This code will expire in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
     `),
   };
 }

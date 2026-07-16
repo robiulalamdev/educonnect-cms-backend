@@ -22,6 +22,7 @@ export const loginSchema = z.object({
 // ── Email Verification ─────────────────────────────────────
 
 export const verifyEmailSchema = z.object({
+  email: z.string().email("Valid email is required"),
   token: z.string().min(1, "Verification token is required"),
 });
 

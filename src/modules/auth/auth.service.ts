@@ -243,7 +243,7 @@ export async function registerUser(input: RegisterInput) {
         expires_at: verificationExpiry.toISOString(),
         user_id: user.id,
       },
-      sent: true, // Mark as sent since we just did
+      sent: false, // Must be false so verifyEmail can find it
       max_attempts: 3,
     },
   });
@@ -302,10 +302,11 @@ export async function loginUser(input: LoginInput) {
 
 // ── Verify Email ───────────────────────────────────────────
 
-export async function verifyEmail(token: string) {
+export async function verifyEmail(email: string, token: string) {
   // Find the most recent unused verification email for this token
   const entry = await prisma.emailQueue.findFirst({
     where: {
+      to_email: email,
       template: "email_verification",
       sent: false,
     },
