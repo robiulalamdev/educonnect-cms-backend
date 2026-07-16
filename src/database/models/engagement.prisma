@@ -67,3 +67,41 @@ model EmailQueue {
     @@index([sent, attempts])
     @@map("email_queue")
 }
+
+// Firebase Cloud Messaging device tokens for push notifications
+model UserDevice {
+    id           String   @id @default(cuid())
+    user_id      String
+    user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    fcm_token    String   @unique
+    platform     String   // "web" | "android" | "ios"
+    is_active    Boolean  @default(true)
+    created_at   DateTime @default(now())
+    last_used_at DateTime @default(now())
+
+    @@index([user_id, is_active])
+    @@map("user_devices")
+}
+
+// User notification preferences — what they want to receive
+model NotificationPreference {
+    id                       String  @id @default(cuid())
+    user_id                  String  @unique
+    user                     User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    // Toggle per channel
+    in_app_enabled           Boolean @default(true)
+    email_enabled            Boolean @default(true)
+    push_enabled             Boolean @default(true)
+    // Toggle per category
+    enrollment_notifications Boolean @default(true)
+    payment_notifications    Boolean @default(true)
+    announcement_notifications Boolean @default(true)
+    task_notifications       Boolean @default(true)
+    attendance_notifications Boolean @default(true)
+    message_notifications    Boolean @default(true)
+    social_notifications     Boolean @default(true) // follow, guardian link
+    created_at               DateTime @default(now())
+    updated_at               DateTime @updatedAt
+
+    @@map("notification_preferences")
+}

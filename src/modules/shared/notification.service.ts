@@ -1,12 +1,9 @@
 import admin from "firebase-admin";
 import { env } from "../../config/env.js";
+import { prisma } from "../../config/prisma.js";
 
-/**
- * Optimized Push Notification Service using Firebase Cloud Messaging (FCM)
- */
 class NotificationService {
   constructor() {
-    // Only initialize if keys are provided
     if (env.FIREBASE_PRIVATE_KEY && env.FIREBASE_CLIENT_EMAIL) {
       admin.initializeApp({
         credential: admin.credential.cert({
@@ -23,42 +20,75 @@ class NotificationService {
    */
   async sendToToken(token: string, title: string, body: string, data?: Record<string, string>) {
     try {
-      const message = {
+      const result = await admin.messaging().send({
         notification: { title, body },
         data: data || {},
         token,
-      };
-      return await admin.messaging().send(message);
-    } catch (error) {
-      console.error("Firebase notification failed:", error);
-      // We don't throw here to prevent blocking background processes if FCM fails
+      });
+      return result;
+    } catch (error: any) {
+      // Remove invalid tokens
+      if (error.code === "messaging/registration-token-not-registered") {
+        await prisma.userDevice.deleteMany({ where: { fcm_token: token } });
+      }
+      console.error("[FCM] Send failed:", error.message);
       return null;
     }
   }
 
   /**
-   * Send notification to a specific user (needs to fetch their active device tokens)
+   * Send push notification to all active devices of a user
    */
   async sendToUser(userId: string, title: string, body: string, data?: Record<string, string>) {
-    // Logic: 
-    // 1. Fetch all active device tokens for the user from UserDevice table (to be implemented)
-    // 2. Loop and send
-    console.log(`[Notification] Would send to user ${userId}: ${title} - ${body}`);
+    const devices = await prisma.userDevice.findMany({
+      where: { user_id: userId, is_active: true },
+      select: { fcm_token: true },
+    });
+
+    if (devices.length === 0) return null;
+
+    const results = await Promise.allSettled(
+      devices.map((d) =>
+        admin.messaging().send({
+          notification: { title, body },
+          data: data || {},
+          token: d.fcm_token,
+        })
+      )
+    );
+
+    // Clean up invalid tokens
+    const invalidTokens: string[] = [];
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        const err = r.reason as any;
+        if (err.code === "messaging/registration-token-not-registered") {
+          invalidTokens.push(devices[i].fcm_token);
+        }
+      }
+    });
+
+    if (invalidTokens.length > 0) {
+      await prisma.userDevice.deleteMany({
+        where: { fcm_token: { in: invalidTokens } },
+      });
+    }
+
+    return results;
   }
 
   /**
-   * Send notification to a topic (e.g. batch_all_students)
+   * Send notification to a topic
    */
   async sendToTopic(topic: string, title: string, body: string, data?: Record<string, string>) {
     try {
-      const message = {
+      return await admin.messaging().send({
         notification: { title, body },
         data: data || {},
         topic,
-      };
-      return await admin.messaging().send(message);
+      });
     } catch (error) {
-      console.error("Firebase topic notification failed:", error);
+      console.error("[FCM] Topic send failed:", error);
       return null;
     }
   }

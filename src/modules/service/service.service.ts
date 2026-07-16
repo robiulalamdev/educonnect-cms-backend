@@ -64,6 +64,30 @@ const safeServiceSelect = {
 export async function createService(teacherId: string, input: CreateServiceInput) {
   const { subject_ids, level_ids, payment_methods, ...data } = input;
 
+  // 1. Verify teacher is approved
+  const teacher = await prisma.user.findUnique({
+    where: { id: teacherId, deleted_at: null },
+    select: { is_approved: true, is_email_verified: true },
+  });
+  if (!teacher) throw new Error("NOT_FOUND");
+  if (!teacher.is_approved) throw new Error("TEACHER_NOT_APPROVED");
+  if (!teacher.is_email_verified) throw new Error("EMAIL_NOT_VERIFIED");
+
+  // 2. Check subscription limits
+  const activeServices = await prisma.service.count({
+    where: { teacher_id: teacherId, status: { not: "CLOSED" }, deleted_at: null },
+  });
+
+  const subscription = await prisma.userSubscription.findUnique({
+    where: { user_id: teacherId },
+    include: { package: true },
+  });
+
+  const maxServices = subscription?.package?.max_services ?? 1;
+  if (activeServices >= maxServices) {
+    throw new Error("SUBSCRIPTION_LIMIT_REACHED");
+  }
+
   // Generate unique slug
   let slug = input.title.toLowerCase().replace(/ /g, "-").replace(/[^\w-]+/g, "");
   const existing = await prisma.service.findUnique({ where: { slug } });

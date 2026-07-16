@@ -15,6 +15,15 @@ import {
   deleteAdminController,
   getAuditLogsController,
 } from "./admin.controller.js";
+import {
+  getUserListController,
+  getUserByIdController,
+  approveTeacherController,
+  suspendUserController,
+  banUserController,
+  reactivateUserController,
+  deleteUserController,
+} from "./user-management.controller.js";
 
 const {
   CAN_VIEW_ADMINS,
@@ -74,5 +83,42 @@ export async function adminRoutes(fastify: FastifyInstance) {
     "/dashboard/audit-logs",
     { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_AUDIT_LOG)] },
     getAuditLogsController,
+  );
+
+  // ── User Management — /api/v1/admin/dashboard/users ──────
+  fastify.get(
+    "/dashboard/users",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
+    getUserListController,
+  );
+  fastify.get(
+    "/dashboard/users/:id",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
+    getUserByIdController,
+  );
+  fastify.patch(
+    "/dashboard/users/:id/approve-teacher",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_EDIT_ADMIN)] },
+    approveTeacherController,
+  );
+  fastify.patch(
+    "/dashboard/users/:id/suspend",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_EDIT_ADMIN)] },
+    suspendUserController,
+  );
+  fastify.patch(
+    "/dashboard/users/:id/ban",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_DELETE_ADMIN)] },
+    banUserController,
+  );
+  fastify.patch(
+    "/dashboard/users/:id/reactivate",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_EDIT_ADMIN)] },
+    reactivateUserController,
+  );
+  fastify.delete(
+    "/dashboard/users/:id",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_DELETE_ADMIN)] },
+    deleteUserController,
   );
 }

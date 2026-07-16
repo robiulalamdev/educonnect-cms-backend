@@ -21,11 +21,12 @@ import { CLD_FOLDERS } from "../../config/cloudinary.js";
 import { emailService } from "../shared/email.service.js";
 import { socketManager } from "../../config/socket.js";
 import { getAdminStats } from "../statistics/statistics.service.js";
+import { jwtConfig } from "../../config/jwt.js";
 
 // ── JWT Secrets ────────────────────────────────────────────
 
-const accessSecret = new TextEncoder().encode(env.JWT_ACCESS_SECRET);
-const refreshSecret = new TextEncoder().encode(env.JWT_REFRESH_SECRET);
+const accessSecret = jwtConfig.user.accessSecret;
+const refreshSecret = jwtConfig.user.refreshSecret;
 
 // ── JWT Payload ────────────────────────────────────────────
 
@@ -121,7 +122,6 @@ const safeUserSelect = {
   avatar: {
     select: {
       id: true,
-      url: true,
       key: true,
       mime_type: true,
       size: true,
@@ -227,7 +227,9 @@ export async function registerUser(input: RegisterInput) {
   }
 
   // Send Verification Email immediately
-  emailService.sendVerificationEmail(user.email, verificationToken).catch(console.error);
+  emailService
+    .sendVerificationEmail(user.email, verificationToken)
+    .catch(console.error);
 
   // Still record in Queue for audit/retry purposes
   await prisma.emailQueue.create({
@@ -247,9 +249,11 @@ export async function registerUser(input: RegisterInput) {
   });
 
   // Trigger real-time statistics update for admins
-  getAdminStats().then(stats => {
-    socketManager.emitStatsUpdate(stats);
-  }).catch(console.error);
+  getAdminStats()
+    .then((stats) => {
+      socketManager.emitStatsUpdate(stats);
+    })
+    .catch(console.error);
 
   return {
     id: user.id,

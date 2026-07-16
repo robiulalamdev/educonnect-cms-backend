@@ -2,6 +2,7 @@ import { prisma } from "../../config/prisma.js";
 import { CreateDirectChatInput, SendMessageInput, ChatQueryInput, MessageQueryInput } from "./chat.schema.js";
 import { CHAT_TYPES } from "./chat.types.js";
 import { socketManager } from "../../config/socket.js";
+import { uploadToCloudinary, type UploadInput } from "../../utils/cloudinary-upload.js";
 
 const safeMessageSelect = {
   id: true,
@@ -17,7 +18,7 @@ const safeMessageSelect = {
     }
   },
   media: {
-    select: { id: true, url: true, type: true }
+    select: { id: true, key: true, filename: true, mime_type: true, type: true }
   },
   reply_to: {
     select: { id: true, body: true, sender_id: true }
@@ -26,6 +27,17 @@ const safeMessageSelect = {
 } as const;
 
 export async function getOrCreateDirectChat(userId: string, targetUserId: string) {
+  // 0. Check if either user has blocked the other
+  const blockExists = await prisma.block.findFirst({
+    where: {
+      OR: [
+        { blocker_id: userId, blocked_id: targetUserId },
+        { blocker_id: targetUserId, blocked_id: userId },
+      ],
+    },
+  });
+  if (blockExists) throw new Error("USER_BLOCKED");
+
   // 1. Check if direct chat exists
   const existing = await prisma.chat.findFirst({
     where: {
@@ -133,7 +145,7 @@ export async function getMessages(chatId: string, userId: string, query: Message
   };
 }
 
-export async function sendMessage(chatId: string, senderId: string, input: SendMessageInput) {
+export async function sendMessage(chatId: string, senderId: string, input: SendMessageInput, mediaUploads?: UploadInput[]) {
   const { media_ids, ...data } = input;
 
   // Verify membership
@@ -141,6 +153,27 @@ export async function sendMessage(chatId: string, senderId: string, input: SendM
     where: { chat_id_user_id: { chat_id: chatId, user_id: senderId } }
   });
   if (!member) throw new Error("FORBIDDEN");
+
+  // Check if sender is blocked by any participant (for direct chats)
+  const chat = await prisma.chat.findUnique({
+    where: { id: chatId },
+    select: { type: true, participants: { select: { user_id: true } } },
+  });
+
+  if (chat?.type === "DIRECT") {
+    const otherUserId = chat.participants.find(p => p.user_id !== senderId)?.user_id;
+    if (otherUserId) {
+      const blockExists = await prisma.block.findFirst({
+        where: {
+          OR: [
+            { blocker_id: senderId, blocked_id: otherUserId },
+            { blocker_id: otherUserId, blocked_id: senderId },
+          ],
+        },
+      });
+      if (blockExists) throw new Error("USER_BLOCKED");
+    }
+  }
 
   const message = await prisma.$transaction(async (tx) => {
     const msg = await tx.message.create({

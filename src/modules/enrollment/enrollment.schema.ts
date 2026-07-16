@@ -14,6 +14,9 @@ export const submitPaymentSchema = z.object({
 
 export const updateEnrollmentStatusSchema = z.object({
   status: z.nativeEnum(ENROLLMENT_TYPES.ENROLLMENT_STATUS_OBJECT),
+  suspension_reason: z.string().max(500).optional(),
+  suspension_until: z.string().datetime().optional(),
+  removal_reason: z.string().max(500).optional(),
 });
 
 export const updatePaymentStatusSchema = z.object({

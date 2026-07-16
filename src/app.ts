@@ -23,6 +23,19 @@ import { enrollmentRoutes } from "./modules/enrollment/enrollment.route.js";
 import { postRoutes } from "./modules/post/post.route.js";
 import { chatRoutes } from "./modules/chat/chat.route.js";
 import { statisticsRoutes } from "./modules/statistics/statistics.route.js";
+
+// New Modules
+import { notificationRoutes } from "./modules/notification/notification.route.js";
+import { blockRoutes } from "./modules/block/block.route.js";
+import { attendanceRoutes } from "./modules/attendance/attendance.route.js";
+import { taskRoutes } from "./modules/task/task.route.js";
+import { dailyNoteRoutes } from "./modules/daily-note/daily-note.route.js";
+import { announcementRoutes } from "./modules/announcement/announcement.route.js";
+import { reviewRoutes } from "./modules/review/review.route.js";
+import { followRoutes } from "./modules/follow/follow.route.js";
+import { deviceRoutes } from "./modules/device/device.route.js";
+import { notificationPreferenceRoutes } from "./modules/notification-preference/notification-preference.route.js";
+
 import { env } from "./config/env.js";
 
 export function buildApp() {
@@ -63,17 +76,17 @@ export function buildApp() {
     socketManager.initialize(app);
   });
 
-  // Initialize route
-  app.get("/", async (request, reply) => {
+  // Health check
+  app.get("/", async () => {
     return {
       message: "Welcome to the server",
       status: "success",
-      timestamp: new Date().toISOString(), // Standard: 2026-03-15T10:35:00.000Z
-      localTime: new Date().toLocaleString(), // Human-readable based on server time
+      timestamp: new Date().toISOString(),
+      localTime: new Date().toLocaleString(),
     };
   });
 
-  // --- Module Registration ---
+  // ── Module Registration ──────────────────────────────────
   app.register(adminRoutes, { prefix: "/api/v1/admin" });
   app.register(authRoutes, { prefix: "/api/v1/auth" });
   app.register(userRoutes, { prefix: "/api/v1/user" });
@@ -82,14 +95,24 @@ export function buildApp() {
   app.register(guardianRoutes, { prefix: "/api/v1/guardian" });
   app.register(educationRoutes, { prefix: "/api/v1/education" });
   app.register(subscriptionRoutes, { prefix: "/api/v1/subscription" });
-  
-  // New Modules
   app.register(serviceRoutes, { prefix: "/api/v1/services" });
   app.register(batchRoutes, { prefix: "/api/v1/batches" });
   app.register(enrollmentRoutes, { prefix: "/api/v1/enrollments" });
   app.register(postRoutes, { prefix: "/api/v1/posts" });
   app.register(chatRoutes, { prefix: "/api/v1/chats" });
   app.register(statisticsRoutes, { prefix: "/api/v1/statistics" });
+
+  // New Modules
+  app.register(notificationRoutes, { prefix: "/api/v1/notifications" });
+  app.register(blockRoutes, { prefix: "/api/v1/blocks" });
+  app.register(attendanceRoutes, { prefix: "/api/v1/attendance" });
+  app.register(taskRoutes, { prefix: "/api/v1/tasks" });
+  app.register(dailyNoteRoutes, { prefix: "/api/v1/daily-notes" });
+  app.register(announcementRoutes, { prefix: "/api/v1/announcements" });
+  app.register(reviewRoutes, { prefix: "/api/v1/reviews" });
+  app.register(followRoutes, { prefix: "/api/v1/follows" });
+  app.register(deviceRoutes, { prefix: "/api/v1/devices" });
+  app.register(notificationPreferenceRoutes, { prefix: "/api/v1/notification-preferences" });
 
   return app;
 }

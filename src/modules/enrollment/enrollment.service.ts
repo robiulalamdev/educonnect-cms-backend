@@ -11,8 +11,10 @@ import { BATCH_TYPES } from "../batch/batch.types.js";
 import { DropdownQueryInput } from "../education/education.schema.js";
 import { emailService } from "../shared/email.service.js";
 import { notificationService } from "../shared/notification.service.js";
+import { createNotification } from "../notification/notification.service.js";
 import { socketManager } from "../../config/socket.js";
 import { getAdminStats, getTeacherStats } from "../statistics/statistics.service.js";
+import { uploadToCloudinary, type UploadInput } from "../../utils/cloudinary-upload.js";
 
 const safeEnrollmentSelect = {
   id: true,
@@ -122,7 +124,7 @@ export async function createEnrollment(studentId: string, input: CreateEnrollmen
   });
 }
 
-export async function submitPayment(studentId: string, enrollmentId: string, input: SubmitPaymentInput) {
+export async function submitPayment(studentId: string, enrollmentId: string, input: SubmitPaymentInput, screenshotUpload?: UploadInput) {
   const enrollment = await prisma.enrollment.findUnique({
     where: { id: enrollmentId },
     include: { student: true }
@@ -266,6 +268,154 @@ export async function updatePaymentStatus(actorId: string, is_admin: boolean, pa
     }
 
     return updatedPayment;
+  });
+}
+
+/**
+ * Teacher/Admin updates enrollment status (approve, reject, suspend, remove, etc.)
+ * Properly manages enrolled_count on the batch.
+ */
+export async function updateEnrollmentStatus(
+  actorId: string,
+  is_admin: boolean,
+  enrollmentId: string,
+  input: UpdateEnrollmentStatusInput
+) {
+  const enrollment = await prisma.enrollment.findUnique({
+    where: { id: enrollmentId },
+    include: {
+      batch: { include: { service: true } },
+      student: { include: { user: true } },
+    },
+  });
+
+  if (!enrollment) throw new Error("ENROLLMENT_NOT_FOUND");
+
+  // Authorization: Only admin or the teacher of the service can update
+  if (!is_admin && enrollment.batch.service.teacher_id !== actorId) {
+    throw new Error("FORBIDDEN");
+  }
+
+  const oldStatus = enrollment.status;
+  const newStatus = input.status;
+
+  // No-op if same status
+  if (oldStatus === newStatus) return enrollment;
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.enrollment.update({
+      where: { id: enrollmentId },
+      data: {
+        status: newStatus,
+        ...(input.suspension_reason && { suspension_reason: input.suspension_reason }),
+        ...(input.suspension_until && { suspension_until: new Date(input.suspension_until) }),
+        ...(input.removal_reason && { removal_reason: input.removal_reason }),
+        ...(newStatus === "APPROVED" && { enrolled_at: new Date() }),
+      },
+      select: safeEnrollmentSelect,
+    });
+
+    // ── Manage enrolled_count ──────────────────────────────
+    const wasCounted = ["APPROVED", "WAITLISTED"].includes(oldStatus);
+    const isCounted = ["APPROVED", "WAITLISTED"].includes(newStatus);
+
+    if (!wasCounted && isCounted) {
+      // Entering counted state
+      if (newStatus === "APPROVED") {
+        await tx.batch.update({
+          where: { id: enrollment.batch_id },
+          data: { enrolled_count: { increment: 1 } },
+        });
+      } else if (newStatus === "WAITLISTED") {
+        await tx.batch.update({
+          where: { id: enrollment.batch_id },
+          data: { waitlist_count: { increment: 1 } },
+        });
+      }
+    } else if (wasCounted && !isCounted) {
+      // Leaving counted state (REMOVED, REJECTED, LEFT, SUSPENDED)
+      if (oldStatus === "APPROVED") {
+        await tx.batch.update({
+          where: { id: enrollment.batch_id },
+          data: { enrolled_count: { decrement: 1 } },
+        });
+      } else if (oldStatus === "WAITLISTED") {
+        await tx.batch.update({
+          where: { id: enrollment.batch_id },
+          data: { waitlist_count: { decrement: 1 } },
+        });
+      }
+    } else if (wasCounted && isCounted && oldStatus !== newStatus) {
+      // Moving between counted states (e.g., WAITLISTED -> APPROVED)
+      if (oldStatus === "WAITLISTED" && newStatus === "APPROVED") {
+        await tx.batch.update({
+          where: { id: enrollment.batch_id },
+          data: {
+            waitlist_count: { decrement: 1 },
+            enrolled_count: { increment: 1 },
+          },
+        });
+      } else if (oldStatus === "APPROVED" && newStatus === "WAITLISTED") {
+        await tx.batch.update({
+          where: { id: enrollment.batch_id },
+          data: {
+            enrolled_count: { decrement: 1 },
+            waitlist_count: { increment: 1 },
+          },
+        });
+      }
+    }
+
+    // ── Remove student from batch group chat if removed/left/suspended ──
+    if (["REMOVED", "LEFT", "SUSPENDED"].includes(newStatus)) {
+      const chat = await tx.chat.findUnique({
+        where: { batch_id: enrollment.batch_id },
+      });
+      if (chat) {
+        await tx.chatParticipant.deleteMany({
+          where: { chat_id: chat.id, user_id: enrollment.student.user_id },
+        });
+      }
+    }
+
+    // ── Re-add student to chat if re-approved ──
+    if (newStatus === "APPROVED" && oldStatus !== "APPROVED") {
+      const chat = await tx.chat.findUnique({
+        where: { batch_id: enrollment.batch_id },
+      });
+      if (chat) {
+        await tx.chatParticipant.upsert({
+          where: {
+            chat_id_user_id: {
+              chat_id: chat.id,
+              user_id: enrollment.student.user_id,
+            },
+          },
+          update: {},
+          create: { chat_id: chat.id, user_id: enrollment.student.user_id },
+        });
+      }
+    }
+
+    // ── Notifications ──
+    const statusMessages: Record<string, { type: string; title: string; body: string }> = {
+      APPROVED: { type: "JOIN_REQUEST_ACCEPTED", title: "Enrollment Approved", body: `You are now enrolled in ${enrollment.batch.name}` },
+      REJECTED: { type: "JOIN_REQUEST_REJECTED", title: "Enrollment Rejected", body: `Your enrollment in ${enrollment.batch.name} was rejected` },
+      SUSPENDED: { type: "ENROLLMENT_SUSPENDED", title: "Enrollment Suspended", body: `Your enrollment in ${enrollment.batch.name} has been suspended` },
+      REMOVED: { type: "ENROLLMENT_REMOVED", title: "Enrollment Removed", body: `You have been removed from ${enrollment.batch.name}` },
+      WAITLISTED: { type: "ENROLLMENT_WAITLISTED", title: "Enrollment Waitlisted", body: `You are on the waitlist for ${enrollment.batch.name}` },
+    };
+
+    if (statusMessages[newStatus]) {
+      createNotification({
+        user_id: enrollment.student.user_id,
+        ...statusMessages[newStatus],
+        reference_type: "enrollment",
+        reference_id: enrollmentId,
+      }).catch(console.error);
+    }
+
+    return updated;
   });
 }
 

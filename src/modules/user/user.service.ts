@@ -28,7 +28,6 @@ const safeUserSelect = {
   avatar: {
     select: {
       id: true,
-      url: true,
       key: true,
       mime_type: true,
       size: true,

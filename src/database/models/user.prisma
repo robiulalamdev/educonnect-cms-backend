@@ -60,6 +60,8 @@ model User {
     blocks_received   Block[]              @relation("blocked")
     admin_notes       AdminNote[]
     teacher_approval  TeacherApproval?
+    devices           UserDevice[]
+    notification_preference NotificationPreference?
 
     @@index([role])
     @@index([status])

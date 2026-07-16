@@ -1,11 +1,17 @@
 import { buildApp } from "./app";
 import { env } from "./config/env";
 import { prisma } from "./config/prisma";
+import { expireSubscriptions } from "./modules/subscription/subscription.service.js";
 
 const app = buildApp();
 
 const start = async () => {
   try {
+    // Expire stale subscriptions on startup
+    await expireSubscriptions().catch((err) => {
+      console.error("[Startup] Failed to expire subscriptions:", err);
+    });
+
     await app.listen({
       port: env.PORT,
       host: "0.0.0.0",

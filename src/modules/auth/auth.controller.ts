@@ -29,12 +29,9 @@ import { env } from "../../config/env.js";
 import { parseMultipart } from "../../utils/parse-multipart.js";
 import { MultipartValidationError } from "../../utils/parse-multipart.js";
 import { CLD_FOLDERS } from "../../config/cloudinary.js";
-
 const COOKIE_ACCESS = env.COOKIE_ACCESS_NAME;
 const COOKIE_REFRESH = env.COOKIE_REFRESH_NAME;
-
 // ── Register ───────────────────────────────────────────────
-
 export async function registerController(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -45,7 +42,6 @@ export async function registerController(
       success: false,
       errors: body.error.flatten().fieldErrors,
     });
-
   try {
     const user = await registerUser(body.data);
     return reply.status(201).send({
@@ -62,9 +58,7 @@ export async function registerController(
     throw err;
   }
 }
-
 // ── Login ──────────────────────────────────────────────────
-
 export async function loginController(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -75,14 +69,11 @@ export async function loginController(
       success: false,
       errors: body.error.flatten().fieldErrors,
     });
-
   try {
     const { user, tokens } = await loginUser(body.data);
-
     reply
       .setCookie(COOKIE_ACCESS, tokens.accessToken, userAccessCookieOptions)
       .setCookie(COOKIE_REFRESH, tokens.refreshToken, userRefreshCookieOptions);
-
     return reply.status(200).send({
       success: true,
       message: "Login successful",
@@ -93,33 +84,27 @@ export async function loginController(
       return reply
         .status(401)
         .send({ success: false, message: "Invalid email or password" });
-
     if (err.message === "EMAIL_NOT_VERIFIED")
       return reply.status(403).send({
         success: false,
         message:
           "Email not verified. Please check your inbox and verify your email first.",
       });
-
     if (err.message === "ACCOUNT_SUSPENDED")
       return reply.status(403).send({
         success: false,
         message:
           "Your account has been suspended. Please contact support for assistance.",
       });
-
     if (err.message === "ACCOUNT_BANNED")
       return reply.status(403).send({
         success: false,
         message: "Your account has been permanently banned.",
       });
-
     throw err;
   }
 }
-
 // ── Refresh ────────────────────────────────────────────────
-
 export async function refreshController(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -129,7 +114,6 @@ export async function refreshController(
     return reply
       .status(401)
       .send({ success: false, message: "No refresh token" });
-
   const { valid, value: refreshToken } = req.unsignCookie(raw);
   if (!valid || !refreshToken) {
     reply
@@ -139,7 +123,6 @@ export async function refreshController(
       .status(401)
       .send({ success: false, message: "Invalid session" });
   }
-
   try {
     const tokens = await refreshUserToken(refreshToken);
     reply.setCookie(COOKIE_ACCESS, tokens.accessToken, userAccessCookieOptions);
@@ -148,19 +131,16 @@ export async function refreshController(
     reply
       .clearCookie(COOKIE_ACCESS, { path: "/" })
       .clearCookie(COOKIE_REFRESH, { path: "/" });
-
     if (err.message === "ACCOUNT_SUSPENDED")
       return reply.status(403).send({
         success: false,
         message: "Your account has been suspended.",
       });
-
     if (err.message === "ACCOUNT_BANNED")
       return reply.status(403).send({
         success: false,
         message: "Your account has been permanently banned.",
       });
-
     return reply
       .status(401)
       .send({
@@ -169,9 +149,7 @@ export async function refreshController(
       });
   }
 }
-
 // ── Logout ─────────────────────────────────────────────────
-
 export async function logoutController(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -181,9 +159,7 @@ export async function logoutController(
     .clearCookie(COOKIE_REFRESH, { path: "/" });
   return reply.send({ success: true, message: "Logged out successfully" });
 }
-
 // ── Verify Email ───────────────────────────────────────────
-
 export async function verifyEmailController(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -194,7 +170,6 @@ export async function verifyEmailController(
       success: false,
       errors: body.error.flatten().fieldErrors,
     });
-
   try {
     await verifyEmail(body.data.token);
     return reply.send({
@@ -207,30 +182,24 @@ export async function verifyEmailController(
         success: false,
         message: "Invalid or expired verification token",
       });
-
     if (err.message === "TOKEN_EXPIRED")
       return reply.status(400).send({
         success: false,
         message:
           "Verification token has expired. Please request a new one.",
       });
-
     if (err.message === "ALREADY_VERIFIED")
       return reply
         .status(409)
         .send({ success: false, message: "Email is already verified" });
-
     if (err.message === "NOT_FOUND")
       return reply
         .status(404)
         .send({ success: false, message: "User not found" });
-
     throw err;
   }
 }
-
 // ── Resend Verification Email ──────────────────────────────
-
 export async function resendVerificationController(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -241,7 +210,6 @@ export async function resendVerificationController(
       success: false,
       errors: body.error.flatten().fieldErrors,
     });
-
   try {
     await resendVerificationEmail(body.data.email);
     return reply.send({
@@ -254,13 +222,11 @@ export async function resendVerificationController(
       return reply
         .status(409)
         .send({ success: false, message: "Email is already verified" });
-
     if (err.message === "ACCOUNT_BANNED")
       return reply.status(403).send({
         success: false,
         message: "Your account has been permanently banned.",
       });
-
     // NOT_FOUND — silently succeed to not leak whether email is registered
     return reply.send({
       success: true,
@@ -269,9 +235,7 @@ export async function resendVerificationController(
     });
   }
 }
-
 // ── Forgot Password ────────────────────────────────────────
-
 export async function forgotPasswordController(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -282,19 +246,15 @@ export async function forgotPasswordController(
       success: false,
       errors: body.error.flatten().fieldErrors,
     });
-
   // Always return the same generic response — never reveal whether email exists
   await forgotPassword(body.data);
-
   return reply.send({
     success: true,
     message:
       "If this email is registered, a password reset link has been sent.",
   });
 }
-
 // ── Reset Password ─────────────────────────────────────────
-
 export async function resetPasswordController(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -305,7 +265,6 @@ export async function resetPasswordController(
       success: false,
       errors: body.error.flatten().fieldErrors,
     });
-
   try {
     await resetPassword(body.data);
     return reply.send({
@@ -319,39 +278,37 @@ export async function resetPasswordController(
         success: false,
         message: "Invalid or expired reset token",
       });
-
     if (err.message === "TOKEN_EXPIRED")
       return reply.status(400).send({
         success: false,
         message:
           "Reset token has expired. Please request a new password reset.",
       });
-
     if (err.message === "ACCOUNT_BANNED")
       return reply.status(403).send({
         success: false,
         message: "Your account has been permanently banned.",
       });
-
     if (err.message === "NOT_FOUND")
       return reply
         .status(404)
         .send({ success: false, message: "User not found" });
-
     throw err;
   }
 }
-
 // ── Get Me ─────────────────────────────────────────────────
-
 export async function getMeController(
   req: FastifyRequest,
   reply: FastifyReply,
 ) {
   try {
+    
     const user = await getUserProfile(req.user!.userId);
     return reply.send({ success: true, data: user });
   } catch (err: any) {
+    
+    
+    
     if (err.message === "ACCOUNT_SUSPENDED") {
       reply
         .clearCookie(COOKIE_ACCESS, { path: "/" })
@@ -361,7 +318,6 @@ export async function getMeController(
         message: "Your account has been suspended.",
       });
     }
-
     if (err.message === "ACCOUNT_BANNED") {
       reply
         .clearCookie(COOKIE_ACCESS, { path: "/" })
@@ -371,13 +327,11 @@ export async function getMeController(
         message: "Your account has been permanently banned.",
       });
     }
-
     return reply
       .status(404)
       .send({ success: false, message: "User not found" });
   }
 }
-
 // ── Update Me (multipart — avatar optional) ────────────────
 //
 // Mirrors admin.controller.ts:updateMeController exactly:
@@ -386,14 +340,12 @@ export async function getMeController(
 //   3. Build UploadInput from ParsedFile if present
 //   4. Call service — which handles replace vs create internally
 //   5. Return updated user with avatar
-
 export async function updateMeController(
   req: FastifyRequest,
   reply: FastifyReply,
 ) {
   let fields: Record<string, any>;
   let file: import("../../utils/parse-multipart.js").ParsedFile | undefined;
-
   try {
     const parsed = await parseMultipart(req, {
       allowedFileFields: {
@@ -416,14 +368,12 @@ export async function updateMeController(
     }
     throw err;
   }
-
   const body = updateProfileSchema.safeParse(fields);
   if (!body.success)
     return reply.status(400).send({
       success: false,
       errors: body.error.flatten().fieldErrors,
     });
-
   // Build UploadInput from the ParsedFile if the caller sent an avatar
   const avatarUpload = file
     ? {
@@ -434,7 +384,6 @@ export async function updateMeController(
         size: file.size,
       }
     : undefined;
-
   try {
     const user = await updateUserProfile(
       req.user!.userId,
@@ -450,9 +399,7 @@ export async function updateMeController(
     throw err;
   }
 }
-
 // ── Change Password (authenticated) ───────────────────────
-
 export async function changePasswordController(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -463,15 +410,12 @@ export async function changePasswordController(
       success: false,
       errors: body.error.flatten().fieldErrors,
     });
-
   try {
     await changeUserPassword(req.user!.userId, body.data);
-
     // Force re-login after password change (invalidate existing sessions)
     reply
       .clearCookie(COOKIE_ACCESS, { path: "/" })
       .clearCookie(COOKIE_REFRESH, { path: "/" });
-
     return reply.send({
       success: true,
       message: "Password changed successfully — please log in again.",
@@ -482,12 +426,10 @@ export async function changePasswordController(
         success: false,
         message: "Current password is incorrect",
       });
-
     if (err.message === "NOT_FOUND")
       return reply
         .status(404)
         .send({ success: false, message: "User not found" });
-
     throw err;
   }
 }

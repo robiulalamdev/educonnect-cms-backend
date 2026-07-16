@@ -1,12 +1,32 @@
 import { FastifyInstance } from "fastify";
-import { verifyUserToken, requireUserRole } from "../auth/auth.middleware.js";
-import { updateStudentProfileController } from "./student.controller.js";
+import { authenticate, requireRole } from "../../middleware/auth.middleware.js";
+import { USER_TYPES } from "../auth/auth.types.js";
+import { ADMIN_TYPES } from "../admin/admin.types.js";
+import {
+  updateStudentProfileController,
+  getMyStudentProfileController,
+  getStudentDetailsController,
+} from "./student.controller.js";
 
 export async function studentRoutes(fastify: FastifyInstance) {
-  // PATCH /api/v1/student/profile
+  // Get own student profile
+  fastify.get(
+    "/profile",
+    { preHandler: [authenticate, requireRole(USER_TYPES.ROLE_OBJECT.STUDENT)] },
+    getMyStudentProfileController,
+  );
+
+  // Update own student profile
   fastify.patch(
     "/profile",
-    { preHandler: [verifyUserToken, requireUserRole("STUDENT")] },
+    { preHandler: [authenticate, requireRole(USER_TYPES.ROLE_OBJECT.STUDENT)] },
     updateStudentProfileController,
+  );
+
+  // Get student details by ID
+  fastify.get(
+    "/:id",
+    { preHandler: [authenticate, requireRole(USER_TYPES.ROLE_OBJECT.TEACHER, ...ADMIN_TYPES.PERMISSIONS.CAN_VIEW)] },
+    getStudentDetailsController,
   );
 }

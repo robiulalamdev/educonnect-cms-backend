@@ -5,11 +5,12 @@ import type { IAdminRole } from "../modules/admin/admin.types.js";
 import type { IUserRole } from "../modules/auth/auth.types.js";
 import { generateUserAccessToken, type UserJwtPayload } from "../modules/auth/auth.service.js";
 import { generateAdminAccessToken, type JwtPayload as AdminJwtPayload } from "../modules/admin/admin.service.js";
+import { jwtConfig } from "../config/jwt.js";
 
-const adminAccessSecret = new TextEncoder().encode(env.ADMIN_JWT_ACCESS_SECRET);
-const adminRefreshSecret = new TextEncoder().encode(env.ADMIN_JWT_REFRESH_SECRET);
-const userAccessSecret = new TextEncoder().encode(env.JWT_ACCESS_SECRET);
-const userRefreshSecret = new TextEncoder().encode(env.JWT_REFRESH_SECRET);
+const adminAccessSecret = jwtConfig.admin.accessSecret;
+const adminRefreshSecret = jwtConfig.admin.refreshSecret;
+const userAccessSecret = jwtConfig.user.accessSecret;
+const userRefreshSecret = jwtConfig.user.refreshSecret;
 
 // ── Cookie Options ─────────────────────────────────────────
 

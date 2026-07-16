@@ -1,32 +1,67 @@
 import { FastifyRequest, FastifyReply } from "fastify";
-import { 
-  createDirectChatSchema, 
-  sendMessageSchema, 
-  chatQuerySchema, 
-  messageQuerySchema 
+import {
+  createDirectChatSchema,
+  sendMessageSchema,
+  chatQuerySchema,
+  messageQuerySchema,
 } from "./chat.schema.js";
-import { 
-  getOrCreateDirectChat, 
-  getChatList, 
-  getMessages, 
-  sendMessage, 
-  markChatRead 
+import {
+  getOrCreateDirectChat,
+  getChatList,
+  getMessages,
+  sendMessage,
+  markChatRead,
 } from "./chat.service.js";
+import { parseMultipart, MultipartValidationError } from "../../utils/parse-multipart.js";
+import { CLD_FOLDERS } from "../../config/cloudinary.js";
 
 export async function getOrCreateDirectChatController(req: FastifyRequest, reply: FastifyReply) {
   const userId = req.user!.userId;
-  const { recipient_id, initial_message, context_service_id } = createDirectChatSchema.parse(req.body);
-  
-  const chat = await getOrCreateDirectChat(userId, recipient_id);
 
-  if (initial_message) {
-    await sendMessage(chat.id, userId, { 
-      body: initial_message, 
-      context_service_id 
+  let fields: Record<string, any>;
+  let mediaFiles: import("../../utils/parse-multipart.js").ParsedFile[] = [];
+
+  try {
+    const parsed = await parseMultipart(req, {
+      allowedFileFields: {
+        media: { folder: CLD_FOLDERS.MESSAGE_MEDIA, maxCount: 3, required: false },
+      },
     });
+    fields = parsed.fields;
+    mediaFiles = parsed.files["media"] ?? [];
+  } catch (err) {
+    if (err instanceof MultipartValidationError) {
+      return reply.status(400).send({ success: false, message: err.message, field: err.field });
+    }
+    throw err;
   }
 
-  return reply.send({ success: true, data: chat });
+  const input = createDirectChatSchema.parse(fields);
+  const mediaUploads = mediaFiles.map((f) => ({
+    buffer: f.buffer,
+    mimetype: f.mimetype,
+    originalFilename: f.filename,
+    folder: CLD_FOLDERS.MESSAGE_MEDIA,
+    size: f.size,
+  }));
+
+  try {
+    const chat = await getOrCreateDirectChat(userId, input.recipient_id);
+
+    if (input.initial_message) {
+      await sendMessage(chat.id, userId, {
+        body: input.initial_message,
+        context_service_id: input.context_service_id,
+      }, mediaUploads);
+    }
+
+    return reply.send({ success: true, data: chat });
+  } catch (err: any) {
+    if (err.message === "USER_BLOCKED") {
+      return reply.status(403).send({ success: false, message: "Cannot create chat with this user" });
+    }
+    throw err;
+  }
 }
 
 export async function getChatListController(req: FastifyRequest, reply: FastifyReply) {
@@ -41,15 +76,49 @@ export async function getMessagesController(req: FastifyRequest, reply: FastifyR
   const { id: chatId } = req.params as { id: string };
   const query = messageQuerySchema.parse(req.query);
   const data = await getMessages(chatId, userId, query);
-  return reply.send({ success: true, ...data });
+  return reply.send({ success: true, data });
 }
 
 export async function sendMessageController(req: FastifyRequest, reply: FastifyReply) {
   const userId = req.user!.userId;
   const { id: chatId } = req.params as { id: string };
-  const input = sendMessageSchema.parse(req.body);
-  const data = await sendMessage(chatId, userId, input);
-  return reply.send({ success: true, data });
+
+  let fields: Record<string, any>;
+  let mediaFiles: import("../../utils/parse-multipart.js").ParsedFile[] = [];
+
+  try {
+    const parsed = await parseMultipart(req, {
+      allowedFileFields: {
+        media: { folder: CLD_FOLDERS.MESSAGE_MEDIA, maxCount: 3, required: false },
+      },
+    });
+    fields = parsed.fields;
+    mediaFiles = parsed.files["media"] ?? [];
+  } catch (err) {
+    if (err instanceof MultipartValidationError) {
+      return reply.status(400).send({ success: false, message: err.message, field: err.field });
+    }
+    throw err;
+  }
+
+  const input = sendMessageSchema.parse(fields);
+  const mediaUploads = mediaFiles.map((f) => ({
+    buffer: f.buffer,
+    mimetype: f.mimetype,
+    originalFilename: f.filename,
+    folder: CLD_FOLDERS.MESSAGE_MEDIA,
+    size: f.size,
+  }));
+
+  try {
+    const data = await sendMessage(chatId, userId, input, mediaUploads);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    if (err.message === "USER_BLOCKED") {
+      return reply.status(403).send({ success: false, message: "Cannot send message to this user" });
+    }
+    throw err;
+  }
 }
 
 export async function markChatReadController(req: FastifyRequest, reply: FastifyReply) {
@@ -59,10 +128,7 @@ export async function markChatReadController(req: FastifyRequest, reply: Fastify
   return reply.send({ success: true, message: "Chat marked as read" });
 }
 
-// Admin Controller
 export async function getAdminChatListController(req: FastifyRequest, reply: FastifyReply) {
   const query = chatQuerySchema.parse(req.query);
-  // Implementation for global chat list (can be added to service)
-  // For now, return empty or implement a global fetch
   return reply.send({ success: true, data: [], meta: { total: 0, page: query.page, limit: query.limit, total_pages: 0 } });
 }
