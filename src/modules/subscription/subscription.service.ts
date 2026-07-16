@@ -251,6 +251,7 @@ export async function grantSubscription(adminId: string, input: GrantSubscriptio
       body: `You have been granted the ${pkg.name} package`,
       reference_type: "subscription",
       reference_id: sub.id,
+      category: "payment",
     }).catch(console.error);
 
     return sub;

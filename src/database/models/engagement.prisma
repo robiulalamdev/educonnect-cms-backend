@@ -68,18 +68,22 @@ model EmailQueue {
     @@map("email_queue")
 }
 
-// Firebase Cloud Messaging device tokens for push notifications
+// Firebase Cloud Messaging tokens for push notifications
+// Supports both web (browser push) and native app (Android/iOS) tokens
+// FCM handles both — same token format, different registration flow
 model UserDevice {
     id           String   @id @default(cuid())
     user_id      String
     user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-    fcm_token    String   @unique
+    fcm_token    String   @unique // FCM registration token (works for web + mobile)
     platform     String   // "web" | "android" | "ios"
+    device_info  String?  // browser name, device model, etc.
     is_active    Boolean  @default(true)
     created_at   DateTime @default(now())
     last_used_at DateTime @default(now())
 
     @@index([user_id, is_active])
+    @@index([fcm_token])
     @@map("user_devices")
 }
 

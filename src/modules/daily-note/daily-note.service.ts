@@ -79,6 +79,7 @@ export async function createDailyNote(teacherId: string, batchId: string, input:
           body: input.title ? `New note: ${input.title}` : "New daily note posted",
           reference_type: "daily_note",
           reference_id: note.id,
+          category: "task",
         }).catch(console.error);
       }
     }

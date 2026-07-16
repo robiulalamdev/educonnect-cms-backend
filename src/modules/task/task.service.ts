@@ -78,6 +78,7 @@ export async function createTask(teacherId: string, batchId: string, input: Crea
           body: `You have a new task: ${input.title}`,
           reference_type: "task",
           reference_id: task.id,
+          category: "task",
         }).catch(console.error);
       }
     }

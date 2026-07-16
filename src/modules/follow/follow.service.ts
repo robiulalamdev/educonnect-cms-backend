@@ -34,6 +34,7 @@ export async function followUser(followerId: string, input: FollowUserInput) {
     body: "Someone started following you",
     reference_type: "follow",
     reference_id: follow.id,
+    category: "social",
   }).catch(console.error);
 
   return follow;

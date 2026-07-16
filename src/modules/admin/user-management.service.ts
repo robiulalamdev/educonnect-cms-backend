@@ -92,6 +92,7 @@ export async function approveTeacher(adminId: string, userId: string) {
     body: "Your teacher account has been approved. You can now create services.",
     reference_type: "user",
     reference_id: userId,
+    category: "social",
   }).catch(console.error);
 
   return updated;
@@ -120,6 +121,7 @@ export async function suspendUser(adminId: string, userId: string) {
     body: "Your account has been suspended. Please contact support.",
     reference_type: "user",
     reference_id: userId,
+    category: "social",
   }).catch(console.error);
 
   return updated;
@@ -148,6 +150,7 @@ export async function banUser(adminId: string, userId: string) {
     body: "Your account has been permanently banned.",
     reference_type: "user",
     reference_id: userId,
+    category: "social",
   }).catch(console.error);
 
   return updated;

@@ -57,6 +57,7 @@ export async function createAnnouncement(teacherId: string, batchId: string, inp
         body: `${input.title}`,
         reference_type: "announcement",
         reference_id: announcement.id,
+        category: "announcement",
       }).catch(console.error);
     }
   }

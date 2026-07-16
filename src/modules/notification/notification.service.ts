@@ -91,6 +91,9 @@ function getCategoryPref(prefs: any, category: string): boolean {
 }
 
 // ── Basic in-app notification (no email/push) ─────────────
+// Checks user preferences before creating.
+// If preferences say in-app is disabled, skips creation.
+// If no preferences exist, creates (defaults to enabled).
 
 export async function createNotification(data: {
   user_id: string;
@@ -100,7 +103,22 @@ export async function createNotification(data: {
   reference_type?: string;
   reference_id?: string;
   channel?: "IN_APP" | "EMAIL";
+  /** Category for preference check — if provided, checks user prefs */
+  category?: string;
 }) {
+  // Check preferences if category provided
+  if (data.category) {
+    try {
+      const prefs = await prisma.notificationPreference.findUnique({
+        where: { user_id: data.user_id },
+      });
+      if (prefs && !prefs.in_app_enabled) return null;
+      if (prefs && getCategoryPref(prefs, data.category) === false) return null;
+    } catch {
+      // Preference check failed — create anyway (fail-open)
+    }
+  }
+
   return prisma.notification.create({
     data: {
       user_id: data.user_id,

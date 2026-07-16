@@ -86,6 +86,7 @@ export async function sendLinkRequest(guardianId: string, input: SendLinkRequest
     body: `You have a new guardian link request`,
     reference_type: "guardian_student",
     reference_id: link.id,
+    category: "social",
   }).catch(console.error);
 
   return link;
@@ -123,6 +124,7 @@ export async function respondToLinkRequest(userId: string, linkId: string, input
     body: "Your guardian link request was accepted",
     reference_type: "guardian_student",
     reference_id: linkId,
+    category: "social",
   }).catch(console.error);
 
   return updated;

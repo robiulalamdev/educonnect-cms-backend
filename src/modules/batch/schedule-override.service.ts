@@ -69,6 +69,7 @@ export async function createScheduleOverride(teacherId: string, batchId: string,
           body: `${batch?.name} on ${input.override_date} has been ${input.type.toLowerCase()}${input.reason ? `: ${input.reason}` : ""}`,
           reference_type: "schedule_override",
           reference_id: override.id,
+          category: "attendance",
         }).catch(console.error);
       }
     }

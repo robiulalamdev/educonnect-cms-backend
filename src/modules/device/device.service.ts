@@ -1,15 +1,22 @@
 import { prisma } from "../../config/prisma.js";
 
-export async function registerDevice(userId: string, fcmToken: string, platform: string) {
+/**
+ * Register or update a device token.
+ * Works for both web (browser push) and mobile (Android/iOS) FCM tokens.
+ * If token already exists, updates last_used_at and reactivates.
+ */
+export async function registerDevice(userId: string, fcmToken: string, platform: string, deviceInfo?: string) {
   return prisma.userDevice.upsert({
     where: { fcm_token: fcmToken },
     create: {
       user_id: userId,
       fcm_token: fcmToken,
       platform,
+      device_info: deviceInfo,
     },
     update: {
       is_active: true,
+      device_info: deviceInfo,
       last_used_at: new Date(),
     },
   });
@@ -33,6 +40,7 @@ export async function getDevices(userId: string) {
       id: true,
       fcm_token: true,
       platform: true,
+      device_info: true,
       is_active: true,
       last_used_at: true,
       created_at: true,
@@ -45,4 +53,10 @@ export async function deactivateAllDevices(userId: string) {
     where: { user_id: userId },
     data: { is_active: false },
   });
+}
+
+export async function removeDeviceById(userId: string, deviceId: string) {
+  const device = await prisma.userDevice.findUnique({ where: { id: deviceId } });
+  if (!device || device.user_id !== userId) throw new Error("NOT_FOUND");
+  await prisma.userDevice.delete({ where: { id: deviceId } });
 }
