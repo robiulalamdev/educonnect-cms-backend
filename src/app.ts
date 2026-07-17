@@ -38,6 +38,7 @@ import { reviewRoutes } from "./modules/review/review.route.js";
 import { followRoutes } from "./modules/follow/follow.route.js";
 import { deviceRoutes } from "./modules/device/device.route.js";
 import { notificationPreferenceRoutes } from "./modules/notification-preference/notification-preference.route.js";
+import { paymentRoutes } from "./modules/payment/payment.route.js";
 
 import { env } from "./config/env.js";
 
@@ -119,6 +120,7 @@ export function buildApp() {
   app.register(followRoutes, { prefix: "/api/v1/follows" });
   app.register(deviceRoutes, { prefix: "/api/v1/devices" });
   app.register(notificationPreferenceRoutes, { prefix: "/api/v1/notification-preferences" });
+  app.register(paymentRoutes, { prefix: "/api/v1/payment" });
 
   return app;
 }
