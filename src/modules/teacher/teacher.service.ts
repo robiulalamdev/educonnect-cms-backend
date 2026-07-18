@@ -23,6 +23,8 @@ export async function getTeacherDetails(id: string) {
       id: true,
       full_name: true,
       avatar: { select: { key: true } },
+      country: true,
+      state: true,
       city: true,
       area: true,
       teacher_profile: true,
@@ -61,8 +63,11 @@ export async function getMyTeacherProfile(userId: string) {
       email: true,
       phone: true,
       avatar: { select: { key: true } },
+      country: true,
+      state: true,
       city: true,
       area: true,
+      address_line: true,
       is_approved: true,
       is_email_verified: true,
       status: true,
@@ -81,8 +86,8 @@ export async function getMyTeacherProfile(userId: string) {
   return teacher;
 }
 
-export async function listTeachers(query: { page?: number; limit?: number; search?: string; city?: string }) {
-  const { page = 1, limit = 20, search, city } = query;
+export async function listTeachers(query: { page?: number; limit?: number; search?: string; country?: string; state?: string; city?: string }) {
+  const { page = 1, limit = 20, search, country, state, city } = query;
   const skip = (page - 1) * limit;
 
   const where: any = {
@@ -91,6 +96,8 @@ export async function listTeachers(query: { page?: number; limit?: number; searc
     is_approved: true,
     is_email_verified: true,
     ...(search && { full_name: { contains: search, mode: "insensitive" } }),
+    ...(country && { country: { contains: country, mode: "insensitive" } }),
+    ...(state && { state: { contains: state, mode: "insensitive" } }),
     ...(city && { city: { contains: city, mode: "insensitive" } }),
   };
 
@@ -104,6 +111,8 @@ export async function listTeachers(query: { page?: number; limit?: number; searc
         id: true,
         full_name: true,
         avatar: { select: { key: true } },
+        country: true,
+        state: true,
         city: true,
         area: true,
         teacher_profile: true,

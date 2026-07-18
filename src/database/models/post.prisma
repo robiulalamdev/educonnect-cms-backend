@@ -22,9 +22,10 @@ model Post {
     budget_max     Decimal?     @db.Decimal(10, 2)
     currency       String?      @default("BDT")
 
-    // location
+    // location — worldwide hierarchy
     country   String?
-    city      String?
+    state     String? // state/province/region
+    city      String? // city/district
     area      String?
     latitude  Decimal? @db.Decimal(10, 7)
     longitude Decimal? @db.Decimal(10, 7)
@@ -43,6 +44,9 @@ model Post {
     @@index([type])
     @@index([status])
     @@index([latitude, longitude])
+    @@index([country])
+    @@index([state])
+    @@index([city])
     @@map("posts")
 }
 

@@ -45,7 +45,7 @@ export async function getMyTeacherProfileController(req: FastifyRequest, reply: 
 }
 
 export async function listTeachersController(req: FastifyRequest, reply: FastifyReply) {
-  const { page, limit, search, city } = req.query as any;
-  const data = await listTeachers({ page: Number(page), limit: Number(limit), search, city });
+  const { page, limit, search, country, state, city } = req.query as any;
+  const data = await listTeachers({ page: Number(page), limit: Number(limit), search, country, state, city });
   return reply.send({ success: true, ...data });
 }

@@ -23,7 +23,10 @@ export async function getStudentDetails(userId: string) {
       id: true,
       full_name: true,
       avatar: { select: { key: true } },
+      country: true,
+      state: true,
       city: true,
+      area: true,
       student_profile: {
         include: { education_level: true },
       },
@@ -45,8 +48,11 @@ export async function getMyStudentProfile(userId: string) {
       gender: true,
       date_of_birth: true,
       avatar: { select: { key: true } },
+      country: true,
+      state: true,
       city: true,
       area: true,
+      address_line: true,
       status: true,
       is_email_verified: true,
       student_profile: {

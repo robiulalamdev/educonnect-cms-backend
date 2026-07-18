@@ -111,3 +111,21 @@ model Announcement {
     @@index([batch_id])
     @@map("announcements")
 }
+
+// Calendar events for batch schedule visualization
+// Generated from BatchSchedule + ScheduleOverride for calendar view
+model CalendarEvent {
+    id         String              @id @default(cuid())
+    batch_id   String
+    batch      Batch               @relation(fields: [batch_id], references: [id], onDelete: Cascade)
+    class_date DateTime            @db.Date
+    start_time String              // "17:00"
+    end_time   String              // "18:00"
+    status     CalendarEventStatus @default(SCHEDULED)
+    reason     String?             // for cancelled/rescheduled events
+    created_at DateTime            @default(now())
+
+    @@unique([batch_id, class_date])
+    @@index([batch_id, class_date])
+    @@map("calendar_events")
+}

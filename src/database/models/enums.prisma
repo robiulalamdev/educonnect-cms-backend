@@ -258,3 +258,13 @@ enum BillingCycle {
     YEARLY
     LIFETIME
 }
+
+// --- Calendar ---
+
+enum CalendarEventStatus {
+    SCHEDULED
+    COMPLETED
+    CANCELLED
+    EXTRA
+    RESCHEDULED
+}

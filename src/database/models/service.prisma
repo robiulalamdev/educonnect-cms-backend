@@ -14,9 +14,13 @@ model Service {
     mode        ServiceMode
     status      ServiceStatus @default(DRAFT)
 
-    // location (offline / hybrid)
+    // rules/terms for the service (e.g., "No mobile phones in class")
+    rules String? @db.Text
+
+    // location (offline / hybrid) — worldwide hierarchy
     country      String?
-    city         String?
+    state        String? // state/province/region
+    city         String? // city/district
     area         String?
     address_line String?
     latitude     Decimal? @db.Decimal(10, 7)
@@ -47,12 +51,16 @@ model Service {
     payment_methods ServicePaymentMethod[]
     posts           Post[]
     reviews         Review[]
+    chats           Chat[]
 
     @@index([teacher_id])
     @@index([status])
     @@index([format])
     @@index([mode])
     @@index([latitude, longitude])
+    @@index([country])
+    @@index([state])
+    @@index([city])
     @@map("services")
 }
 
@@ -120,6 +128,7 @@ model Batch {
     tasks              Task[]
     daily_notes        DailyNote[]
     announcements      Announcement[]
+    calendar_events    CalendarEvent[]
     group_chat         Chat?              @relation("batch_chat")
 
     @@index([service_id])

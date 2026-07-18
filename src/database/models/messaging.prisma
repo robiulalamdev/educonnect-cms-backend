@@ -12,6 +12,11 @@ model Chat {
     batch_id String? @unique
     batch    Batch?  @relation("batch_chat", fields: [batch_id], references: [id])
 
+    // service context — for DIRECT chats, links to a teacher's service
+    // so both parties know what they're discussing
+    service_id String?
+    service    Service? @relation(fields: [service_id], references: [id])
+
     name      String? // group name for batch chats
     avatar_id String? @unique // replaces avatar_url
     avatar    Media?  @relation(fields: [avatar_id], references: [id])
@@ -22,6 +27,7 @@ model Chat {
     participants ChatParticipant[]
     messages     Message[]
 
+    @@index([service_id])
     @@map("chats")
 }
 

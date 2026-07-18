@@ -7,6 +7,7 @@
 model User {
     id            String    @id @default(cuid())
     role          UserRole
+    username      String?   @unique // unique, searchable, used in public profile URL
     full_name     String
     email         String    @unique
     password      String // hashed
@@ -17,10 +18,11 @@ model User {
     avatar        Media?    @relation(fields: [avatar_id], references: [id])
     bio           String?   @db.Text
 
-    // location
+    // location — worldwide hierarchy: Country → State → City → Area
     country      String?
-    city         String?
-    area         String?
+    state        String? // state/province/region (filtered by country)
+    city         String? // city/district (filtered by state)
+    area         String? // specific area/locality (free text)
     address_line String?
     latitude     Decimal? @db.Decimal(10, 7)
     longitude    Decimal? @db.Decimal(10, 7)
@@ -70,7 +72,11 @@ model User {
     @@index([role])
     @@index([status])
     @@index([email])
+    @@index([username])
     @@index([latitude, longitude])
+    @@index([country])
+    @@index([state])
+    @@index([city])
     @@map("users")
 }
 
