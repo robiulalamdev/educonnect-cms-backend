@@ -7,6 +7,7 @@ import { socketManager } from "./config/socket.js";
 
 // Plugins
 import corsPlugin from "./plugins/cors.js";
+import { setupRateLimit } from "./plugins/rateLimit.js";
 
 // Routes
 import { userRoutes } from "./modules/user/user.route.js";
@@ -89,6 +90,9 @@ export function buildApp() {
       localTime: new Date().toLocaleString(),
     };
   });
+
+  // Rate Limiting
+  await setupRateLimit(app);
 
   // ── Module Registration ──────────────────────────────────
   app.register(adminRoutes, { prefix: "/api/v1/admin" });

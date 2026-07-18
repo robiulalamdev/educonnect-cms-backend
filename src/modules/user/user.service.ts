@@ -124,3 +124,33 @@ export async function getUserById(id: string) {
   if (!user) throw new Error("NOT_FOUND");
   return user;
 }
+
+/**
+ * Get suggested users (teachers with most services, not already followed by the current user)
+ */
+export async function getSuggestedUsers(currentUserId: string, limit = 5) {
+  const users = await prisma.user.findMany({
+    where: {
+      id: { not: currentUserId },
+      deleted_at: null,
+      status: "ACTIVE",
+      role: "TEACHER",
+    },
+    take: limit,
+    orderBy: { created_at: "desc" },
+    select: {
+      id: true,
+      full_name: true,
+      avatar: { select: { id: true, key: true } },
+      teacher_profile: {
+        select: {
+          tagline: true,
+          average_rating: true,
+          total_reviews: true,
+        },
+      },
+    },
+  });
+
+  return users;
+}

@@ -252,3 +252,29 @@ export async function getPostsDropdown(query: DropdownQueryInput, context: { aut
     meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
   };
 }
+
+export async function getTrendingPosts(limit = 10) {
+  const posts = await prisma.post.findMany({
+    where: {
+      deleted_at: null,
+      status: "ACTIVE",
+    },
+    take: limit * 3,
+    orderBy: { created_at: "desc" },
+    select: {
+      ...safePostSelect,
+      _count: { select: { likes: true, comments: true } },
+    },
+  });
+
+  // Score by engagement: likes * 3 + comments * 2 + recency
+  const scored = posts.map((post) => {
+    const age = (Date.now() - new Date(post.created_at).getTime()) / 3600000;
+    const recency = Math.max(0, 24 - age);
+    const score = (post._count.likes || 0) * 3 + (post._count.comments || 0) * 2 + recency;
+    return { ...post, _score: score };
+  });
+
+  scored.sort((a, b) => b._score - a._score);
+  return scored.slice(0, limit);
+}

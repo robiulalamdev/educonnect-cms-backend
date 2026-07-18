@@ -7,6 +7,7 @@ import {
   getMyPostsController,
   getPostsDropdownController,
   getAdminPostsController,
+  getTrendingPostsController,
 } from "./post.controller.js";
 import { authenticate, requireRole } from "../../middleware/auth.middleware.js";
 import { USER_TYPES } from "../auth/auth.types.js";
@@ -17,6 +18,7 @@ const ALL_USERS = [USER_TYPES.ROLE_OBJECT.TEACHER, USER_TYPES.ROLE_OBJECT.STUDEN
 export async function postRoutes(fastify: FastifyInstance) {
   // ── Root / Public ──────────────────────────────────────────
   fastify.get("/", getPostFeedController);
+  fastify.get("/trending", getTrendingPostsController);
   fastify.get("/:id", getPostByIdController);
   fastify.get("/dropdown/root", getPostsDropdownController);
 

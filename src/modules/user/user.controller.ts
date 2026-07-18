@@ -5,6 +5,7 @@ import {
 import {
   getUsers,
   getUserById,
+  getSuggestedUsers,
 } from "./user.service.js";
 
 /**
@@ -38,4 +39,11 @@ export async function getUserByIdController(req: FastifyRequest, reply: FastifyR
     }
     throw err;
   }
+}
+
+export async function getSuggestedUsersController(req: FastifyRequest, reply: FastifyReply) {
+  const currentUserId = req.user!.userId;
+  const { limit } = (req.query as any) || {};
+  const data = await getSuggestedUsers(currentUserId, limit ? parseInt(limit) : 5);
+  return reply.send({ success: true, data });
 }

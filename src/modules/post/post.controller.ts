@@ -10,6 +10,7 @@ import {
   getPostById,
   updatePost,
   getPostsDropdown,
+  getTrendingPosts,
 } from "./post.service.js";
 import { dropdownQuerySchema } from "../education/education.schema.js";
 import { POST_TYPES } from "./post.types.js";
@@ -118,4 +119,10 @@ export async function getPostsDropdownController(req: FastifyRequest, reply: Fas
   const context = { author_id: req.user?.userId };
   const data = await getPostsDropdown(query, context);
   return reply.send({ success: true, ...data });
+}
+
+export async function getTrendingPostsController(req: FastifyRequest, reply: FastifyReply) {
+  const { limit } = (req.query as any) || {};
+  const data = await getTrendingPosts(limit ? parseInt(limit) : 10);
+  return reply.send({ success: true, data });
 }
