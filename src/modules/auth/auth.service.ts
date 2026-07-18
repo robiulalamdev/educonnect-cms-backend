@@ -101,6 +101,7 @@ export async function refreshUserToken(refreshToken: string) {
 const safeUserSelect = {
   id: true,
   role: true,
+  username: true,
   full_name: true,
   email: true,
   phone: true,
@@ -108,6 +109,7 @@ const safeUserSelect = {
   date_of_birth: true,
   bio: true,
   country: true,
+  state: true,
   city: true,
   area: true,
   address_line: true,
@@ -552,6 +554,7 @@ export async function updateUserProfile(
       }),
       ...(input.bio !== undefined && { bio: input.bio }),
       ...(input.country !== undefined && { country: input.country }),
+      ...(input.state !== undefined && { state: input.state }),
       ...(input.city !== undefined && { city: input.city }),
       ...(input.area !== undefined && { area: input.area }),
       ...(input.address_line !== undefined && {

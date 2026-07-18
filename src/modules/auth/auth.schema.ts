@@ -71,6 +71,7 @@ export const updateProfileSchema = z.object({
   date_of_birth: z.string().datetime({ offset: true }).optional(),
   bio: z.string().max(500, "Bio max 500 characters").optional(),
   country: z.string().optional(),
+  state: z.string().optional(),
   city: z.string().optional(),
   area: z.string().optional(),
   address_line: z.string().optional(),
