@@ -104,7 +104,7 @@ export function buildApp() {
   app.register(enrollmentRoutes, { prefix: "/api/v1/enrollments" });
   app.register(postRoutes, { prefix: "/api/v1/posts" });
   app.register(commentRoutes, { prefix: "/api/v1/posts" });
-  app.register(likeRoutes, { prefix: "/api/v1" });
+  app.register(likeRoutes, { prefix: "/api/v1/posts" });
   app.register(storyRoutes, { prefix: "/api/v1/stories" });
   app.register(chatRoutes, { prefix: "/api/v1/chats" });
   app.register(statisticsRoutes, { prefix: "/api/v1/statistics" });
