@@ -43,7 +43,7 @@ import { paymentRoutes } from "./modules/payment/payment.route.js";
 
 import { env } from "./config/env.js";
 
-export function buildApp() {
+export async function buildApp() {
   const app = Fastify({
     logger: false,
   });
