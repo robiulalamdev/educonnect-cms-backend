@@ -1,7 +1,10 @@
 import { FastifyRequest, FastifyReply } from "fastify";
+import { z } from "zod";
 import {
   getUserList,
   getUserById,
+  createUserByAdmin,
+  updateUserByAdmin,
   approveTeacher,
   suspendUser,
   banUser,
@@ -9,9 +12,70 @@ import {
   deleteUser,
 } from "./user-management.service.js";
 
+const createUserSchema = z.object({
+  full_name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  role: z.enum(["TEACHER", "STUDENT", "GUARDIAN"]),
+  phone: z.string().optional(),
+});
+
+const updateUserSchema = z.object({
+  full_name: z.string().min(1).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  role: z.enum(["TEACHER", "STUDENT", "GUARDIAN"]).optional(),
+  status: z.enum(["ACTIVE", "SUSPENDED", "BANNED"]).optional(),
+});
+
+const userListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().optional(),
+  role: z.string().optional(),
+  status: z.string().optional(),
+  is_approved: z.string().optional(),
+  date_from: z.string().optional(),
+  date_to: z.string().optional(),
+});
+
+export async function createUserByAdminController(req: FastifyRequest, reply: FastifyReply) {
+  const adminId = req.admin!.adminId;
+  const body = createUserSchema.safeParse(req.body);
+  if (!body.success)
+    return reply.status(400).send({ success: false, errors: body.error.flatten().fieldErrors });
+  try {
+    const data = await createUserByAdmin(adminId, body.data);
+    return reply.status(201).send({ success: true, message: "User created", data });
+  } catch (err: any) {
+    if (err.message === "EMAIL_TAKEN")
+      return reply.status(409).send({ success: false, message: "Email already in use" });
+    throw err;
+  }
+}
+
+export async function updateUserByAdminController(req: FastifyRequest, reply: FastifyReply) {
+  const { id } = req.params as { id: string };
+  const body = updateUserSchema.safeParse(req.body);
+  if (!body.success)
+    return reply.status(400).send({ success: false, errors: body.error.flatten().fieldErrors });
+  try {
+    const data = await updateUserByAdmin(id, body.data);
+    return reply.send({ success: true, message: "User updated", data });
+  } catch (err: any) {
+    if (err.message === "NOT_FOUND")
+      return reply.status(404).send({ success: false, message: "User not found" });
+    if (err.message === "EMAIL_TAKEN")
+      return reply.status(409).send({ success: false, message: "Email already in use" });
+    throw err;
+  }
+}
+
 export async function getUserListController(req: FastifyRequest, reply: FastifyReply) {
-  const query = req.query as any;
-  const data = await getUserList(query);
+  const query = userListQuerySchema.safeParse(req.query);
+  if (!query.success)
+    return reply.status(400).send({ success: false, errors: query.error.flatten().fieldErrors });
+  const data = await getUserList(query.data);
   return reply.send({ success: true, ...data });
 }
 

@@ -25,8 +25,12 @@ export async function getUserList(query: {
   role?: string;
   status?: string;
   is_approved?: string;
+  date_from?: string;
+  date_to?: string;
 }) {
-  const { page = 1, limit = 20, search, role, status, is_approved } = query;
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 20;
+  const { search, role, status, is_approved, date_from, date_to } = query;
   const skip = (page - 1) * limit;
 
   const where: any = {
@@ -40,7 +44,17 @@ export async function getUserList(query: {
     ...(role && { role }),
     ...(status && { status }),
     ...(is_approved !== undefined && { is_approved: is_approved === "true" }),
+    ...(date_from && { created_at: { gte: new Date(date_from) } }),
+    ...(date_to && { created_at: { ...(date_from ? {} : {}), lte: new Date(date_to + "T23:59:59.999Z") } }),
   };
+
+  // Merge date range into a single created_at filter
+  if (date_from || date_to) {
+    where.created_at = {
+      ...(date_from && { gte: new Date(date_from) }),
+      ...(date_to && { lte: new Date(date_to + "T23:59:59.999Z") }),
+    };
+  }
 
   const [users, total] = await Promise.all([
     prisma.user.findMany({
@@ -57,6 +71,77 @@ export async function getUserList(query: {
     data: users,
     meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
   };
+}
+
+export async function createUserByAdmin(adminId: string, input: {
+  full_name: string;
+  email: string;
+  password: string;
+  role: string;
+  phone?: string;
+}) {
+  const existing = await prisma.user.findUnique({ where: { email: input.email } });
+  if (existing) throw new Error("EMAIL_TAKEN");
+
+  const bcrypt = await import("bcryptjs");
+  const hashed = await bcrypt.hash(input.password, 12);
+
+  const user = await prisma.user.create({
+    data: {
+      full_name: input.full_name,
+      email: input.email,
+      password: hashed,
+      role: input.role as any,
+      phone: input.phone ?? null,
+      status: "ACTIVE",
+      is_email_verified: true,
+      is_approved: input.role === "TEACHER" ? false : true,
+    },
+    select: safeUserSelect,
+  });
+
+  // Create role profile
+  if (input.role === "TEACHER") {
+    await prisma.teacherProfile.create({ data: { user_id: user.id } });
+  } else if (input.role === "STUDENT") {
+    await prisma.studentProfile.create({ data: { user_id: user.id } });
+  } else if (input.role === "GUARDIAN") {
+    await prisma.guardianProfile.create({ data: { user_id: user.id } });
+  }
+
+  createAuditLog(adminId, "USER_APPROVED", "user", user.id, { full_name: user.full_name, action: "created_by_admin" });
+  return user;
+}
+
+export async function updateUserByAdmin(userId: string, input: {
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  status?: string;
+}) {
+  const user = await prisma.user.findUnique({ where: { id: userId, deleted_at: null } });
+  if (!user) throw new Error("NOT_FOUND");
+
+  // Check email uniqueness if changing
+  if (input.email && input.email !== user.email) {
+    const existing = await prisma.user.findUnique({ where: { email: input.email } });
+    if (existing) throw new Error("EMAIL_TAKEN");
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(input.full_name && { full_name: input.full_name }),
+      ...(input.email && { email: input.email }),
+      ...(input.phone !== undefined && { phone: input.phone || null }),
+      ...(input.role && { role: input.role as any }),
+      ...(input.status && { status: input.status as any }),
+    },
+    select: safeUserSelect,
+  });
+
+  return updated;
 }
 
 export async function getUserById(id: string) {

@@ -40,9 +40,10 @@ model User {
     deleted_at DateTime? // soft delete
 
     // role profiles
-    teacher_profile  TeacherProfile?
-    student_profile  StudentProfile?
-    guardian_profile GuardianProfile?
+    teacher_profile         TeacherProfile?
+    student_profile         StudentProfile?
+    guardian_profile        GuardianProfile?
+    coaching_center_profile CoachingCenterProfile?
 
     // subscription tier
     subscription         UserSubscription?
@@ -73,6 +74,7 @@ model User {
     @@index([status])
     @@index([email])
     @@index([username])
+    @@index([created_at])
     @@index([latitude, longitude])
     @@index([country])
     @@index([state])
@@ -130,6 +132,20 @@ model GuardianProfile {
     children GuardianStudent[]
 
     @@map("guardian_profiles")
+}
+
+// Extended info for coaching centers
+model CoachingCenterProfile {
+    id                   String   @id @default(cuid())
+    user_id              String   @unique
+    user                 User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    trade_license_number String?
+    established_year     Int?
+    website              String?
+    created_at           DateTime @default(now())
+    updated_at           DateTime @updatedAt
+
+    @@map("coaching_center_profiles")
 }
 
 // Mutual-acceptance linking between guardian and student

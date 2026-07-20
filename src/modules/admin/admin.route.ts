@@ -18,12 +18,26 @@ import {
 import {
   getUserListController,
   getUserByIdController,
+  createUserByAdminController,
+  updateUserByAdminController,
   approveTeacherController,
   suspendUserController,
   banUserController,
   reactivateUserController,
   deleteUserController,
 } from "./user-management.controller.js";
+import { getAdminPostsController } from "../post/post.controller.js";
+import {
+  getReviewListController,
+  hideReviewController,
+} from "../review/review.controller.js";
+import { getPackagesController } from "../subscription/subscription.controller.js";
+import { getAdminStatsController } from "../statistics/statistics.controller.js";
+import {
+  adminDirectLinkController,
+  adminGetAllLinksController,
+  adminRemoveLinkController,
+} from "../guardian/guardian.controller.js";
 
 const {
   CAN_VIEW_ADMINS,
@@ -31,6 +45,9 @@ const {
   CAN_REGISTER_ADMIN,
   CAN_DELETE_ADMIN,
   CAN_VIEW_AUDIT_LOG,
+  CAN_MODERATE_POST,
+  CAN_MODERATE_REVIEW,
+  CAN_MANAGE_GUARDIAN_LINKS,
 } = ADMIN_TYPES.PERMISSIONS;
 
 export async function adminRoutes(fastify: FastifyInstance) {
@@ -86,6 +103,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
   );
 
   // ── User Management — /api/v1/admin/dashboard/users ──────
+  fastify.post(
+    "/dashboard/users",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_REGISTER_ADMIN)] },
+    createUserByAdminController,
+  );
   fastify.get(
     "/dashboard/users",
     { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
@@ -95,6 +117,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
     "/dashboard/users/:id",
     { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
     getUserByIdController,
+  );
+  fastify.patch(
+    "/dashboard/users/:id",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_EDIT_ADMIN)] },
+    updateUserByAdminController,
   );
   fastify.patch(
     "/dashboard/users/:id/approve-teacher",
@@ -120,5 +147,55 @@ export async function adminRoutes(fastify: FastifyInstance) {
     "/dashboard/users/:id",
     { preHandler: [verifyAdminToken, requireRole(...CAN_DELETE_ADMIN)] },
     deleteUserController,
+  );
+
+  // ── Posts — /api/v1/admin/dashboard/posts ────────────────
+  fastify.get(
+    "/dashboard/posts",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
+    getAdminPostsController,
+  );
+
+  // ── Reviews — /api/v1/admin/dashboard/reviews ───────────
+  fastify.get(
+    "/dashboard/reviews",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
+    getReviewListController,
+  );
+  fastify.patch(
+    "/dashboard/reviews/:id/hide",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_MODERATE_REVIEW)] },
+    hideReviewController,
+  );
+
+  // ── Subscriptions — /api/v1/admin/dashboard/subscriptions ─
+  fastify.get(
+    "/dashboard/subscriptions",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
+    getPackagesController,
+  );
+
+  // ── Statistics — /api/v1/admin/dashboard/stats ───────────
+  fastify.get(
+    "/dashboard/stats",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_AUDIT_LOG)] },
+    getAdminStatsController,
+  );
+
+  // ── Guardian-Student Links — /api/v1/admin/dashboard/guardian-links ─
+  fastify.get(
+    "/dashboard/guardian-links",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_MANAGE_GUARDIAN_LINKS)] },
+    adminGetAllLinksController,
+  );
+  fastify.post(
+    "/dashboard/guardian-links",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_MANAGE_GUARDIAN_LINKS)] },
+    adminDirectLinkController,
+  );
+  fastify.delete(
+    "/dashboard/guardian-links/:id",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_MANAGE_GUARDIAN_LINKS)] },
+    adminRemoveLinkController,
   );
 }
