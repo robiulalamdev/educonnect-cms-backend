@@ -118,7 +118,7 @@ export async function createService(teacherId: string, input: CreateServiceInput
 }
 
 export async function getServiceList(query: ServiceQueryInput) {
-  const { page, limit, q, teacher_id, subject_id, level_id, format, mode, status, city, area, min_fee, max_fee } = query;
+  const { page, limit, q, teacher_id, subject_id, level_id, format, mode, status, state, city, area, min_fee, max_fee } = query;
   const skip = (page - 1) * limit;
 
   const where: any = {
@@ -133,6 +133,7 @@ export async function getServiceList(query: ServiceQueryInput) {
     ...(status && { status }),
     ...(format && { format }),
     ...(mode && { mode }),
+    ...(state && { state }),
     ...(city && { city }),
     ...(area && { area }),
     ...(subject_id && { subjects: { some: { subject_id } } }),

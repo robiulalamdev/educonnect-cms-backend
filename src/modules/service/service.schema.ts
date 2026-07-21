@@ -43,6 +43,7 @@ export const serviceQuerySchema = z.object({
   format: z.nativeEnum(SERVICE_TYPES.FORMAT_OBJECT).optional(),
   mode: z.nativeEnum(SERVICE_TYPES.MODE_OBJECT).optional(),
   status: z.nativeEnum(SERVICE_TYPES.STATUS_OBJECT).optional(),
+  state: z.string().optional(),
   city: z.string().optional(),
   area: z.string().optional(),
   min_fee: z.coerce.number().optional(),

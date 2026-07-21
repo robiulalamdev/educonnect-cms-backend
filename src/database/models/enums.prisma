@@ -8,6 +8,7 @@ enum UserRole {
     TEACHER
     STUDENT
     GUARDIAN
+    COACHING_CENTER
 }
 
 enum UserStatus {

@@ -9,6 +9,7 @@ export const USER_ROLE_OBJECT = {
   TEACHER: "TEACHER",
   STUDENT: "STUDENT",
   GUARDIAN: "GUARDIAN",
+  COACHING_CENTER: "COACHING_CENTER",
 } as const;
 
 // ── Status Object ──────────────────────────────────────────
@@ -31,7 +32,7 @@ export const GENDER_OBJECT = {
 // ── Main Types Object ──────────────────────────────────────
 
 export const USER_TYPES = {
-  ROLES: ["TEACHER", "STUDENT", "GUARDIAN"] as const,
+  ROLES: ["TEACHER", "STUDENT", "GUARDIAN", "COACHING_CENTER"] as const,
   STATUS: ["PENDING_VERIFICATION", "ACTIVE", "SUSPENDED", "BANNED"] as const,
   GENDERS: ["MALE", "FEMALE", "OTHER"] as const,
 

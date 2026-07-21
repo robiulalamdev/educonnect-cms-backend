@@ -135,7 +135,7 @@ export async function createPost(
 }
 
 export async function getPostList(query: PostQueryInput) {
-  const { page, limit, type, status, author_id, subject_id, level_id, search } = query;
+  const { page, limit, type, status, author_id, subject_id, level_id, search, state, city, area, budget_min, budget_max, preferred_mode } = query;
   const skip = (page - 1) * limit;
 
   const where: any = {
@@ -143,8 +143,18 @@ export async function getPostList(query: PostQueryInput) {
     ...(type && { type }),
     ...(status && { status }),
     ...(author_id && { author_id }),
-    ...(subject_id && { subject_id }),
-    ...(level_id && { level_id }),
+    ...(subject_id && { subjects: { some: { subject_id } } }),
+    ...(level_id && { levels: { some: { level_id } } }),
+    ...(state && { state }),
+    ...(city && { city }),
+    ...(area && { area }),
+    ...(preferred_mode && { preferred_mode }),
+    ...((budget_min || budget_max) && {
+      OR: [
+        { budget_min: { gte: budget_min, lte: budget_max } },
+        { budget_max: { gte: budget_min, lte: budget_max } },
+      ]
+    }),
     ...(search && {
       OR: [
         { title: { contains: search, mode: "insensitive" } },

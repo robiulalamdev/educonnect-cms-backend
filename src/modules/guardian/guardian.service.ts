@@ -191,3 +191,139 @@ export async function removeLink(userId: string, linkId: string) {
 
   await prisma.guardianStudent.delete({ where: { id: linkId } });
 }
+
+// ── Admin: Direct Link Management ─────────────────────────
+
+/**
+ * Admin creates a direct guardian-student link (status: ACTIVE immediately, no request flow)
+ */
+export async function adminDirectLink(
+  guardianUserId: string,
+  studentUserId: string,
+  relationLabel?: string,
+) {
+  // Validate guardian
+  const guardianUser = await prisma.user.findUnique({
+    where: { id: guardianUserId, deleted_at: null },
+    select: { id: true, role: true, full_name: true },
+  });
+  if (!guardianUser) throw new Error("GUARDIAN_NOT_FOUND");
+  if (guardianUser.role !== "GUARDIAN") throw new Error("USER_NOT_GUARDIAN");
+
+  const guardianProfile = await prisma.guardianProfile.findUnique({
+    where: { user_id: guardianUserId },
+  });
+  if (!guardianProfile) throw new Error("GUARDIAN_PROFILE_NOT_FOUND");
+
+  // Validate student
+  const studentUser = await prisma.user.findUnique({
+    where: { id: studentUserId, deleted_at: null },
+    select: { id: true, role: true, full_name: true, student_profile: true },
+  });
+  if (!studentUser) throw new Error("STUDENT_NOT_FOUND");
+  if (studentUser.role !== "STUDENT") throw new Error("USER_NOT_STUDENT");
+  if (!studentUser.student_profile) throw new Error("STUDENT_NO_PROFILE");
+
+  // Check if link already exists
+  const existing = await prisma.guardianStudent.findUnique({
+    where: {
+      guardian_profile_id_student_profile_id: {
+        guardian_profile_id: guardianProfile.id,
+        student_profile_id: studentUser.student_profile.id,
+      },
+    },
+  });
+  if (existing) throw new Error("ALREADY_LINKED");
+
+  // Create directly as ACTIVE
+  const link = await prisma.guardianStudent.create({
+    data: {
+      guardian_profile_id: guardianProfile.id,
+      student_profile_id: studentUser.student_profile.id,
+      status: "ACTIVE",
+      initiated_by: "GUARDIAN",
+      relation_label: relationLabel || "Guardian",
+      responded_at: new Date(),
+    },
+    include: {
+      guardian: {
+        select: {
+          id: true,
+          user: { select: { id: true, full_name: true, email: true, avatar: { select: { key: true } } } },
+        },
+      },
+      student: {
+        select: {
+          id: true,
+          user: { select: { id: true, full_name: true, email: true, avatar: { select: { key: true } } } },
+        },
+      },
+    },
+  });
+
+  return link;
+}
+
+/**
+ * Admin: List all guardian-student links with pagination and search
+ */
+export async function adminGetAllLinks(query: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+}) {
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 20;
+  const skip = (page - 1) * limit;
+
+  const where: any = {};
+  if (query.status) where.status = query.status;
+  if (query.search) {
+    where.OR = [
+      { guardian: { user: { full_name: { contains: query.search, mode: "insensitive" } } } },
+      { guardian: { user: { email: { contains: query.search, mode: "insensitive" } } } },
+      { student: { user: { full_name: { contains: query.search, mode: "insensitive" } } } },
+      { student: { user: { email: { contains: query.search, mode: "insensitive" } } } },
+    ];
+  }
+
+  const [links, total] = await Promise.all([
+    prisma.guardianStudent.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { id: "desc" },
+      include: {
+        guardian: {
+          select: {
+            id: true,
+            user: { select: { id: true, full_name: true, email: true, avatar: { select: { key: true } } } },
+          },
+        },
+        student: {
+          select: {
+            id: true,
+            user: { select: { id: true, full_name: true, email: true, avatar: { select: { key: true } } } },
+          },
+        },
+      },
+    }),
+    prisma.guardianStudent.count({ where }),
+  ]);
+
+  return {
+    data: links,
+    meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
+  };
+}
+
+/**
+ * Admin: Remove a guardian-student link
+ */
+export async function adminRemoveLink(linkId: string) {
+  const link = await prisma.guardianStudent.findUnique({ where: { id: linkId } });
+  if (!link) throw new Error("NOT_FOUND");
+  await prisma.guardianStudent.delete({ where: { id: linkId } });
+  return { success: true };
+}

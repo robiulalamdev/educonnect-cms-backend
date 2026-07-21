@@ -201,8 +201,8 @@ export async function registerUser(input: RegisterInput) {
 
   const hashed = await bcrypt.hash(input.password, 12);
 
-  // Generate a secure random email verification token
-  const verificationToken = crypto.randomBytes(32).toString("hex");
+  // Generate a secure random 6-digit email verification token
+  const verificationToken = crypto.randomInt(100000, 999999).toString();
   const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
   const user = await prisma.user.create({
@@ -226,6 +226,8 @@ export async function registerUser(input: RegisterInput) {
     await prisma.studentProfile.create({ data: { user_id: user.id } });
   } else if (input.role === "GUARDIAN") {
     await prisma.guardianProfile.create({ data: { user_id: user.id } });
+  } else if (input.role === "COACHING_CENTER") {
+    await prisma.coachingCenterProfile.create({ data: { user_id: user.id } });
   }
 
   // Send Verification Email immediately
@@ -277,6 +279,10 @@ export async function loginUser(input: LoginInput) {
   if (user.status === "BANNED") throw new Error("ACCOUNT_BANNED");
   if (user.status === "SUSPENDED") throw new Error("ACCOUNT_SUSPENDED");
 
+  if (user.role === "COACHING_CENTER" && !user.is_approved) {
+    throw new Error("ACCOUNT_PENDING_APPROVAL");
+  }
+
   const valid = await bcrypt.compare(input.password, user.password);
   if (!valid) throw new Error("INVALID_CREDENTIALS");
 
@@ -318,7 +324,22 @@ export async function verifyEmail(email: string, token: string) {
   if (!entry) throw new Error("INVALID_TOKEN");
 
   const payload = entry.payload as Record<string, any>;
-  if (payload?.token !== token) throw new Error("INVALID_TOKEN");
+  if (payload?.token !== token) {
+    const nextAttempts = entry.attempts + 1;
+    if (nextAttempts >= entry.max_attempts) {
+      await prisma.emailQueue.update({
+        where: { id: entry.id },
+        data: { attempts: nextAttempts, sent: true, error: "MAX_ATTEMPTS_REACHED" },
+      });
+      throw new Error("MAX_ATTEMPTS_REACHED");
+    } else {
+      await prisma.emailQueue.update({
+        where: { id: entry.id },
+        data: { attempts: nextAttempts },
+      });
+      throw new Error("INVALID_TOKEN");
+    }
+  }
 
   const expires = new Date(payload.expires_at as string);
   if (expires < new Date()) throw new Error("TOKEN_EXPIRED");
@@ -360,7 +381,7 @@ export async function resendVerificationEmail(email: string) {
   if (user.is_email_verified) throw new Error("ALREADY_VERIFIED");
   if (user.status === "BANNED") throw new Error("ACCOUNT_BANNED");
 
-  const verificationToken = crypto.randomBytes(32).toString("hex");
+  const verificationToken = crypto.randomInt(100000, 999999).toString();
   const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
   await prisma.emailQueue.create({
@@ -389,7 +410,7 @@ export async function forgotPassword(input: ForgotPasswordInput) {
   // Silently return — NEVER reveal whether this email is registered
   if (!user || user.status === "BANNED") return;
 
-  const resetToken = crypto.randomBytes(32).toString("hex");
+  const resetToken = crypto.randomInt(100000, 999999).toString();
   const resetExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
   await prisma.emailQueue.create({
@@ -422,7 +443,22 @@ export async function resetPassword(input: ResetPasswordInput) {
   if (!entry) throw new Error("INVALID_TOKEN");
 
   const payload = entry.payload as Record<string, any>;
-  if (payload?.token !== input.token) throw new Error("INVALID_TOKEN");
+  if (payload?.token !== input.token) {
+    const nextAttempts = entry.attempts + 1;
+    if (nextAttempts >= entry.max_attempts) {
+      await prisma.emailQueue.update({
+        where: { id: entry.id },
+        data: { attempts: nextAttempts, sent: true, error: "MAX_ATTEMPTS_REACHED" },
+      });
+      throw new Error("MAX_ATTEMPTS_REACHED");
+    } else {
+      await prisma.emailQueue.update({
+        where: { id: entry.id },
+        data: { attempts: nextAttempts },
+      });
+      throw new Error("INVALID_TOKEN");
+    }
+  }
 
   const expires = new Date(payload.expires_at as string);
   if (expires < new Date()) throw new Error("TOKEN_EXPIRED");

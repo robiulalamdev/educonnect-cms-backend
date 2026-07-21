@@ -104,6 +104,9 @@ export const ADMIN_TYPES = {
 
     // Who can add notes on any user profile
     CAN_ADD_ADMIN_NOTE: ["SUPER_ADMIN", "ADMIN", "MODERATOR"] as const,
+
+    // Who can manage guardian-student links directly
+    CAN_MANAGE_GUARDIAN_LINKS: ["SUPER_ADMIN", "ADMIN", "MODERATOR"] as const,
   },
 } as const;
 

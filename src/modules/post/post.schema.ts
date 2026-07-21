@@ -24,6 +24,12 @@ export const postQuerySchema = z.object({
   subject_id: z.string().optional(),
   level_id: z.string().optional(),
   search: z.string().optional(),
+  state: z.string().optional(),
+  city: z.string().optional(),
+  area: z.string().optional(),
+  budget_min: z.coerce.number().optional(),
+  budget_max: z.coerce.number().optional(),
+  preferred_mode: z.nativeEnum({ ONLINE: "ONLINE", OFFLINE: "OFFLINE", HYBRID: "HYBRID" }).optional(),
 });
 
 export type CreatePostInput = z.infer<typeof createPostSchema>;
