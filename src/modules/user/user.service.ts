@@ -129,9 +129,17 @@ export async function getUserById(id: string) {
  * Get suggested users (teachers with most services, not already followed by the current user)
  */
 export async function getSuggestedUsers(currentUserId: string, limit = 5) {
+  // Get IDs of users already followed by the current user
+  const followedIds = await prisma.follow.findMany({
+    where: { follower_id: currentUserId },
+    select: { following_id: true },
+  });
+  const excludeIds = followedIds.map((f) => f.following_id);
+  excludeIds.push(currentUserId); // Also exclude self
+
   const users = await prisma.user.findMany({
     where: {
-      id: { not: currentUserId },
+      id: { notIn: excludeIds },
       deleted_at: null,
       status: "ACTIVE",
       role: "TEACHER",
