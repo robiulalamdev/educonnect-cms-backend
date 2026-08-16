@@ -55,6 +55,13 @@ export const auditLogQuerySchema = z.object({
   end_date: z.string().datetime().optional(),
 });
 
+export const moderationQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  type: z.enum(["posts", "reviews", "all"]).default("all"),
+  search: z.string().optional(),
+});
+
 // ── Types ──────────────────────────────────────────────────
 
 export type RegisterAdminInput = z.infer<typeof registerAdminSchema>;
@@ -64,3 +71,4 @@ export type UpdateOwnProfileInput = z.infer<typeof updateOwnProfileSchema>;
 export type UpdateAdminInput = z.infer<typeof updateAdminSchema>;
 export type AdminListQueryInput = z.infer<typeof adminListQuerySchema>;
 export type AuditLogQueryInput = z.infer<typeof auditLogQuerySchema>;
+export type ModerationQueryInput = z.infer<typeof moderationQuerySchema>;

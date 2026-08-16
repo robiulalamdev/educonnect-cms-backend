@@ -14,6 +14,8 @@ import {
   updateAdminController,
   deleteAdminController,
   getAuditLogsController,
+  getModerationController,
+  removePostController,
 } from "./admin.controller.js";
 import {
   getUserListController,
@@ -159,6 +161,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
     { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
     getAdminPostsController,
   );
+  fastify.patch(
+    "/dashboard/posts/:id/remove",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_MODERATE_POST)] },
+    removePostController,
+  );
 
   // ── Reviews — /api/v1/admin/dashboard/reviews ───────────
   fastify.get(
@@ -213,5 +220,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
     "/dashboard/guardian-links/:id",
     { preHandler: [verifyAdminToken, requireRole(...CAN_MANAGE_GUARDIAN_LINKS)] },
     adminRemoveLinkController,
+  );
+
+  // ── Moderation — /api/v1/admin/dashboard/moderation ──────
+  fastify.get(
+    "/dashboard/moderation",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_MODERATE_POST, ...CAN_MODERATE_REVIEW)] },
+    getModerationController,
   );
 }

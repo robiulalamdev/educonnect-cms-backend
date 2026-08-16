@@ -263,6 +263,19 @@ export async function getPostsDropdown(query: DropdownQueryInput, context: { aut
   };
 }
 
+/**
+ * Remove a post (admin action — soft delete)
+ */
+export async function removePost(postId: string) {
+  const post = await prisma.post.findUnique({ where: { id: postId } });
+  if (!post) throw new Error("NOT_FOUND");
+
+  await prisma.post.update({
+    where: { id: postId },
+    data: { status: "DELETED", deleted_at: new Date() },
+  });
+}
+
 export async function getTrendingPosts(limit = 10) {
   const posts = await prisma.post.findMany({
     where: {

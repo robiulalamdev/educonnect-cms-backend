@@ -28,6 +28,9 @@ import {
 import { env } from "../../config/env.js";
 import { parseMultipart } from "../../utils/parse-multipart.js";
 import { CLD_FOLDERS } from "../../config/cloudinary.js";
+import { getModerationItems } from "./moderation.service.js";
+import { moderationQuerySchema } from "./admin.schema.js";
+import { removePost } from "../post/post.service.js";
 
 const COOKIE_ACCESS = env.ADMIN_COOKIE_ACCESS_NAME;
 const COOKIE_REFRESH = env.ADMIN_COOKIE_REFRESH_NAME;
@@ -409,6 +412,39 @@ export async function deleteAdminController(
         success: false,
         message: "You cannot delete your own account",
       });
+    throw err;
+  }
+}
+
+// ── Moderation ────────────────────────────────────────────
+
+export async function getModerationController(
+  req: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const query = moderationQuerySchema.safeParse(req.query);
+  if (!query.success)
+    return reply.status(400).send({
+      success: false,
+      errors: query.error.flatten().fieldErrors,
+    });
+
+  const result = await getModerationItems(query.data);
+  return reply.send({ success: true, ...result });
+}
+
+export async function removePostController(
+  req: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const { id } = req.params as { id: string };
+
+  try {
+    await removePost(id);
+    return reply.send({ success: true, message: "Post removed successfully" });
+  } catch (err: any) {
+    if (err.message === "NOT_FOUND")
+      return reply.status(404).send({ success: false, message: "Post not found" });
     throw err;
   }
 }
