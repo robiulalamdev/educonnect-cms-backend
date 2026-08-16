@@ -93,6 +93,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
     { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
     getAdminListController,
   );
+  fastify.get(
+    "/dashboard/admins/:id",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
+    getAdminByIdController,
+  );
   fastify.patch(
     "/dashboard/admins/:id",
     { preHandler: [verifyAdminToken, requireRole(...CAN_EDIT_ADMIN)] },
