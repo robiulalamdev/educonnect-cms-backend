@@ -19,6 +19,8 @@ import { authenticate, requireRole } from "../../middleware/auth.middleware.js";
 import { USER_TYPES } from "../auth/auth.types.js";
 import { ADMIN_TYPES } from "../admin/admin.types.js";
 
+const ALL_USERS = [USER_TYPES.ROLE_OBJECT.TEACHER, USER_TYPES.ROLE_OBJECT.STUDENT, USER_TYPES.ROLE_OBJECT.GUARDIAN];
+
 export async function batchRoutes(fastify: FastifyInstance) {
   // ── Root / Public ──────────────────────────────────────────
   fastify.get("/", getBatchListController);

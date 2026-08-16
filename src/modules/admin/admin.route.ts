@@ -56,6 +56,7 @@ const {
   CAN_MODERATE_POST,
   CAN_MODERATE_REVIEW,
   CAN_MANAGE_GUARDIAN_LINKS,
+  CAN_APPROVE_TEACHER,
 } = ADMIN_TYPES.PERMISSIONS;
 
 export async function adminRoutes(fastify: FastifyInstance) {
