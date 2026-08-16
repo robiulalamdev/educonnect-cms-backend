@@ -274,3 +274,97 @@ export async function deleteUser(adminId: string, userId: string) {
 
   createAuditLog(adminId, "USER_BANNED", "user", userId, { full_name: user.full_name, action: "soft_deleted" });
 }
+
+/**
+ * Get teacher-specific list for admin (with approval status filtering)
+ */
+export async function getTeacherList(query: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  is_approved?: string;
+}) {
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 20;
+  const { search, status, is_approved } = query;
+  const skip = (page - 1) * limit;
+
+  const where: any = {
+    deleted_at: null,
+    role: "TEACHER",
+    ...(search && {
+      OR: [
+        { full_name: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+      ],
+    }),
+    ...(status === "PENDING_APPROVAL" && { is_approved: false, status: "ACTIVE" }),
+    ...(status === "APPROVED" && { is_approved: true }),
+    ...(is_approved !== undefined && { is_approved: is_approved === "true" }),
+  };
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { created_at: "desc" },
+      select: {
+        ...safeUserSelect,
+        city: true,
+        country: true,
+        teacher_profile: {
+          select: {
+            id: true,
+            tagline: true,
+            experience_years: true,
+            qualifications: true,
+            achievements: true,
+            average_rating: true,
+            total_reviews: true,
+          },
+        },
+      },
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return {
+    data: users,
+    meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
+  };
+}
+
+/**
+ * Reject a pending teacher (mark as rejected / not approved)
+ */
+export async function rejectTeacher(adminId: string, userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId, deleted_at: null },
+    select: { id: true, role: true, full_name: true, is_approved: true },
+  });
+  if (!user) throw new Error("NOT_FOUND");
+  if (user.role !== "TEACHER") throw new Error("MUST_BE_TEACHER");
+  if (user.is_approved) throw new Error("ALREADY_APPROVED");
+
+  // Soft delete the teacher (effectively rejecting them)
+  await prisma.user.update({
+    where: { id: userId },
+    data: { deleted_at: new Date(), status: "BANNED" },
+  });
+
+  createAuditLog(adminId, "USER_SUSPENDED", "user", userId, { full_name: user.full_name, action: "teacher_rejected" });
+
+  createNotification({
+    user_id: userId,
+    type: "ACCOUNT_SUSPENDED",
+    title: "Teacher Application Rejected",
+    body: "Your teacher application has been rejected. Please contact support for more information.",
+    reference_type: "user",
+    reference_id: userId,
+    category: "social",
+  }).catch(console.error);
+
+  return { id: userId };
+}

@@ -9,7 +9,8 @@ import {
   getBatchList, 
   getBatchById, 
   updateBatch, 
-  getBatchesDropdown 
+  getBatchesDropdown,
+  getCalendarEvents,
 } from "./batch.service.js";
 import { dropdownQuerySchema } from "../education/education.schema.js";
 import { BATCH_TYPES } from "./batch.types.js";
@@ -68,4 +69,16 @@ export async function getBatchesDropdownController(req: FastifyRequest, reply: F
 
   const data = await getBatchesDropdown(query, context);
   return reply.send({ success: true, ...data });
+}
+
+export async function getCalendarEventsController(req: FastifyRequest, reply: FastifyReply) {
+  const { start, end } = req.query as { start?: string; end?: string };
+  const userId = req.user!.userId;
+  const userRole = req.user!.role;
+
+  const startDate = start || new Date().toISOString();
+  const endDate = end || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const data = await getCalendarEvents(userId, userRole, startDate, endDate);
+  return reply.send({ success: true, data });
 }

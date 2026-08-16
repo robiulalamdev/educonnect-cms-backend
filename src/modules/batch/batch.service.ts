@@ -199,3 +199,69 @@ export async function getBatchesDropdown(query: DropdownQueryInput, context: { t
     }
   };
 }
+
+/**
+ * Get calendar events (batches with schedules for a date range)
+ */
+export async function getCalendarEvents(userId: string, userRole: string, start: string, end: string) {
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+
+  const where: any = {
+    status: { in: ["UPCOMING", "ONGOING"] },
+    start_date: { lte: endDate },
+    OR: [
+      { end_date: null },
+      { end_date: { gte: startDate } },
+    ],
+  };
+
+  // Filter by user role
+  if (userRole === "TEACHER") {
+    where.service = { teacher_id: userId };
+  } else if (userRole === "STUDENT") {
+    where.enrollments = {
+      some: {
+        student: { user_id: userId },
+        status: { in: ["APPROVED", "PENDING"] },
+      },
+    };
+  }
+
+  const batches = await prisma.batch.findMany({
+    where,
+    select: {
+      id: true,
+      name: true,
+      start_date: true,
+      end_date: true,
+      status: true,
+      service: {
+        select: { title: true, teacher_id: true },
+      },
+      schedule: {
+        select: { day: true, start_time: true, end_time: true },
+      },
+    },
+  });
+
+  // Convert to calendar events
+  const events: any[] = [];
+  for (const batch of batches) {
+    for (const sched of batch.schedule) {
+      events.push({
+        id: `${batch.id}-${sched.day}`,
+        batch_id: batch.id,
+        title: `${batch.name} - ${batch.service.title}`,
+        day: sched.day,
+        start_time: sched.start_time,
+        end_time: sched.end_time,
+        batch_name: batch.name,
+        service_title: batch.service.title,
+        status: batch.status,
+      });
+    }
+  }
+
+  return events;
+}

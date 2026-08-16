@@ -23,10 +23,12 @@ import {
   createUserByAdminController,
   updateUserByAdminController,
   approveTeacherController,
+  rejectTeacherController,
   suspendUserController,
   banUserController,
   reactivateUserController,
   deleteUserController,
+  getTeacherListController,
 } from "./user-management.controller.js";
 import { getAdminPostsController } from "../post/post.controller.js";
 import {
@@ -153,6 +155,23 @@ export async function adminRoutes(fastify: FastifyInstance) {
     "/dashboard/users/:id",
     { preHandler: [verifyAdminToken, requireRole(...CAN_DELETE_ADMIN)] },
     deleteUserController,
+  );
+
+  // ── Teacher Management — /api/v1/admin/dashboard/teachers ─
+  fastify.get(
+    "/dashboard/teachers",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
+    getTeacherListController,
+  );
+  fastify.patch(
+    "/dashboard/teachers/:id/approve",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_APPROVE_TEACHER)] },
+    approveTeacherController,
+  );
+  fastify.patch(
+    "/dashboard/teachers/:id/reject",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_APPROVE_TEACHER)] },
+    rejectTeacherController,
   );
 
   // ── Posts — /api/v1/admin/dashboard/posts ────────────────

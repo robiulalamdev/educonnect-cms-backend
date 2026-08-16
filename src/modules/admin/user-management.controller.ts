@@ -6,10 +6,12 @@ import {
   createUserByAdmin,
   updateUserByAdmin,
   approveTeacher,
+  rejectTeacher,
   suspendUser,
   banUser,
   reactivateUser,
   deleteUser,
+  getTeacherList,
 } from "./user-management.service.js";
 
 const createUserSchema = z.object({
@@ -151,6 +153,28 @@ export async function deleteUserController(req: FastifyRequest, reply: FastifyRe
     return reply.send({ success: true, message: "User deleted" });
   } catch (err: any) {
     if (err.message === "NOT_FOUND") return reply.status(404).send({ success: false, message: "User not found" });
+    throw err;
+  }
+}
+
+export async function getTeacherListController(req: FastifyRequest, reply: FastifyReply) {
+  const query = userListQuerySchema.safeParse(req.query);
+  if (!query.success)
+    return reply.status(400).send({ success: false, errors: query.error.flatten().fieldErrors });
+  const data = await getTeacherList(query.data);
+  return reply.send({ success: true, ...data });
+}
+
+export async function rejectTeacherController(req: FastifyRequest, reply: FastifyReply) {
+  const adminId = req.admin!.adminId;
+  const { id } = req.params as { id: string };
+  try {
+    const data = await rejectTeacher(adminId, id);
+    return reply.send({ success: true, message: "Teacher rejected", data });
+  } catch (err: any) {
+    if (err.message === "NOT_FOUND") return reply.status(404).send({ success: false, message: "User not found" });
+    if (err.message === "MUST_BE_TEACHER") return reply.status(400).send({ success: false, message: "User is not a teacher" });
+    if (err.message === "ALREADY_APPROVED") return reply.status(400).send({ success: false, message: "Teacher already approved" });
     throw err;
   }
 }

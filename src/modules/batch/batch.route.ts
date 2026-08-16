@@ -7,6 +7,7 @@ import {
   getTeacherBatchesController,
   getAdminBatchesController,
   getBatchesDropdownController,
+  getCalendarEventsController,
 } from "./batch.controller.js";
 import {
   createScheduleOverrideController,
@@ -38,6 +39,13 @@ export async function batchRoutes(fastify: FastifyInstance) {
     profileRoutes.post("/teacher/:batchId/schedule-overrides", createScheduleOverrideController);
     profileRoutes.get("/teacher/:batchId/schedule-overrides", getScheduleOverridesController);
   }, { prefix: "/profile" });
+
+  // ── Calendar ─────────────────────────────────────────────
+  fastify.get(
+    "/calendar",
+    { preHandler: [authenticate, requireRole(...ALL_USERS)] },
+    getCalendarEventsController,
+  );
 
   // Schedule Override management
   fastify.patch(
