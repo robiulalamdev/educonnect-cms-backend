@@ -38,6 +38,10 @@ import {
   adminGetAllLinksController,
   adminRemoveLinkController,
 } from "../guardian/guardian.controller.js";
+import {
+  getPaymentListController,
+  getPaymentByIdController,
+} from "../payment/payment.controller.js";
 
 const {
   CAN_VIEW_ADMINS,
@@ -173,6 +177,18 @@ export async function adminRoutes(fastify: FastifyInstance) {
     "/dashboard/subscriptions",
     { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
     getPackagesController,
+  );
+
+  // ── Payments — /api/v1/admin/dashboard/payments ─────────
+  fastify.get(
+    "/dashboard/payments",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
+    getPaymentListController,
+  );
+  fastify.get(
+    "/dashboard/payments/:id",
+    { preHandler: [verifyAdminToken, requireRole(...CAN_VIEW_ADMINS)] },
+    getPaymentByIdController,
   );
 
   // ── Statistics — /api/v1/admin/dashboard/stats ───────────
