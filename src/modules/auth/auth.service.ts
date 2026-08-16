@@ -203,7 +203,7 @@ export async function registerUser(input: RegisterInput) {
 
   // Generate a secure random 6-digit email verification token
   const verificationToken = crypto.randomInt(100000, 999999).toString();
-  const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+  const verificationExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
   const user = await prisma.user.create({
     data: {
@@ -382,7 +382,7 @@ export async function resendVerificationEmail(email: string) {
   if (user.status === "BANNED") throw new Error("ACCOUNT_BANNED");
 
   const verificationToken = crypto.randomInt(100000, 999999).toString();
-  const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+  const verificationExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
   await prisma.emailQueue.create({
     data: {
