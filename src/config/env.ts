@@ -59,6 +59,8 @@ const schema = {
   FIREBASE_PROJECT_ID: "string",
   FIREBASE_CLIENT_EMAIL: "string",
   FIREBASE_PRIVATE_KEY: "string",
+  FIREBASE_VAPID_PUBLIC_KEY: "string",
+  FIREBASE_SENDER_ID: "string",
 
   // FRONTEND URLS (For Socket CORS)
   FRONTEND_URL: "string",

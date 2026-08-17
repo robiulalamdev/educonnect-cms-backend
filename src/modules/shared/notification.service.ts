@@ -93,6 +93,17 @@ class NotificationService {
   }
 
   /**
+   * Return the public Firebase config needed by the frontend for Web Push.
+   */
+  getPublicConfig() {
+    return {
+      project_id: env.FIREBASE_PROJECT_ID,
+      vapid_public_key: env.FIREBASE_VAPID_PUBLIC_KEY,
+      sender_id: env.FIREBASE_SENDER_ID,
+    };
+  }
+
+  /**
    * Send notification to a topic.
    * Always returns gracefully — never throws.
    */
