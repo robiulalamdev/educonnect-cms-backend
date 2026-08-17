@@ -5,6 +5,7 @@ import {
 import {
   getUsers,
   getUserById,
+  getUserByUsername,
   getSuggestedUsers,
 } from "./user.service.js";
 
@@ -46,4 +47,21 @@ export async function getSuggestedUsersController(req: FastifyRequest, reply: Fa
   const { limit } = (req.query as any) || {};
   const data = await getSuggestedUsers(currentUserId, limit ? parseInt(limit) : 5);
   return reply.send({ success: true, data });
+}
+
+/**
+ * Handle getting a public user by username
+ */
+export async function getUserByUsernameController(req: FastifyRequest, reply: FastifyReply) {
+  const { username } = req.params as { username: string };
+
+  try {
+    const user = await getUserByUsername(username);
+    return reply.send({ success: true, data: user });
+  } catch (err: any) {
+    if (err.message === "NOT_FOUND") {
+      return reply.status(404).send({ success: false, message: "User not found" });
+    }
+    throw err;
+  }
 }

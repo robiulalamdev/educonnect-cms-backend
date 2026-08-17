@@ -7,6 +7,7 @@ import {
 
 const safeUserSelect = {
   id: true,
+  username: true,
   role: true,
   full_name: true,
   email: true,
@@ -118,6 +119,19 @@ export async function getUsers(query: UserListQueryInput) {
 export async function getUserById(id: string) {
   const user = await prisma.user.findUnique({
     where: { id, deleted_at: null },
+    select: safeUserSelect,
+  });
+
+  if (!user) throw new Error("NOT_FOUND");
+  return user;
+}
+
+/**
+ * Get a single public user by username with full profile
+ */
+export async function getUserByUsername(username: string) {
+  const user = await prisma.user.findUnique({
+    where: { username, deleted_at: null },
     select: safeUserSelect,
   });
 
