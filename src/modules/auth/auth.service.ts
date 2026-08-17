@@ -193,6 +193,31 @@ async function uploadUserAvatar(
 
 // ── Register ───────────────────────────────────────────────
 
+/**
+ * Generate a unique username from email/full_name if none was provided.
+ */
+async function generateUniqueUsername(email: string, fullName: string): Promise<string> {
+  const base = slugify(email.split("@")[0]) || slugify(fullName) || `user_${Date.now()}`;
+  let candidate = base;
+  let i = 1;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const existing = await prisma.user.findUnique({
+      where: { username: candidate },
+      select: { id: true },
+    });
+    if (!existing) return candidate;
+    candidate = `${base}${i++}`;
+  }
+}
+
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 20);
+}
+
 export async function registerUser(input: RegisterInput) {
   const existing = await prisma.user.findUnique({
     where: { email: input.email },
@@ -211,6 +236,7 @@ export async function registerUser(input: RegisterInput) {
       email: input.email,
       password: hashed,
       role: input.role,
+      username: await generateUniqueUsername(input.email, input.full_name),
       phone: input.phone ?? null,
       gender: input.gender ?? null,
       status: "PENDING_VERIFICATION",
