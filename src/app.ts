@@ -179,7 +179,7 @@ export async function buildApp() {
   // Root endpoint
   app.get("/", async () => {
     return {
-      message: "Welcome to the Coaching Management System API",
+      message: "Welcome to the EduConnect API",
       status: "success",
       timestamp: new Date().toISOString(),
       version: process.env.npm_package_version ?? "1.0.0",

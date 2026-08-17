@@ -7,7 +7,7 @@ export async function setupSwagger(app: FastifyInstance) {
   await app.register(fastifySwagger, {
     openapi: {
       info: {
-        title: "Coaching Management System API",
+        title: "EduConnect API",
         description: "API documentation for CMS - Connecting teachers with students/guardians",
         version: "2.0.0",
         contact: {

@@ -59,7 +59,7 @@ function wrap(title: string, headerTitle: string, bodyHtml: string): string {
       ${bodyHtml}
     </div>
     <div style="${FOOTER_STYLE}">
-      Coaching Management System &copy; ${new Date().getFullYear()}
+      EduConnect &copy; ${new Date().getFullYear()}
     </div>
   </div>
 </body>

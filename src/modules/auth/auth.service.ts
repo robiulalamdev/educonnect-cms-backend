@@ -240,7 +240,7 @@ export async function registerUser(input: RegisterInput) {
     data: {
       to_email: user.email,
       to_name: user.full_name,
-      subject: "Verify your email — Coaching Management System",
+      subject: "Verify your email — EduConnect",
       template: "email_verification",
       payload: {
         token: verificationToken,
@@ -388,7 +388,7 @@ export async function resendVerificationEmail(email: string) {
     data: {
       to_email: user.email,
       to_name: user.full_name,
-      subject: "Verify your email — Coaching Management System",
+      subject: "Verify your email — EduConnect",
       template: "email_verification",
       payload: {
         token: verificationToken,
@@ -417,7 +417,7 @@ export async function forgotPassword(input: ForgotPasswordInput) {
     data: {
       to_email: user.email,
       to_name: user.full_name,
-      subject: "Reset your password — Coaching Management System",
+      subject: "Reset your password — EduConnect",
       template: "password_reset",
       payload: {
         token: resetToken,

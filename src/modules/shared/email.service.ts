@@ -18,7 +18,7 @@ class EmailService {
   private async send(to: string, subject: string, html: string) {
     try {
       return await this.transporter.sendMail({
-        from: `"Coaching Management System" <${env.GMAIL_USER}>`,
+        from: `"EduConnect" <${env.GMAIL_USER}>`,
         to,
         subject,
         html,

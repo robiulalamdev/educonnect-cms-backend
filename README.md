@@ -1,8 +1,8 @@
-# Coaching Management System - Backend
+# EduConnect - Backend (Coaching Management System)
 
 > **Version:** 2.0.0 | **Node:** 20+ | **TypeScript** | **Fastify** | **Prisma** | **PostgreSQL**
 
-A production-ready backend API for the Coaching Management System connecting teachers with students/guardians in Bangladesh.
+A production-ready backend API for EduConnect connecting teachers with students/guardians in Bangladesh.
 
 ---
 
