@@ -9,6 +9,7 @@ import {
   createService, 
   getServiceList, 
   getServiceById, 
+  getServiceBySlug,
   updateService, 
   getServicesDropdown 
 } from "./service.service.js";
@@ -44,6 +45,19 @@ export async function getServiceByIdController(req: FastifyRequest, reply: Fasti
   const { id } = req.params as { id: string };
   const data = await getServiceById(id);
   return reply.send({ success: true, data });
+}
+
+export async function getServiceBySlugController(req: FastifyRequest, reply: FastifyReply) {
+  const { slug } = req.params as { slug: string };
+  try {
+    const data = await getServiceBySlug(slug);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    if (err.message === "NOT_FOUND") {
+      return reply.status(404).send({ success: false, message: "Service not found" });
+    }
+    throw err;
+  }
 }
 
 export async function updateServiceController(req: FastifyRequest, reply: FastifyReply) {

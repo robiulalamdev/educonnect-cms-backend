@@ -177,6 +177,45 @@ export async function getServiceById(id: string) {
   return service;
 }
 
+export async function getServiceBySlug(slug: string) {
+  const service = await prisma.service.findUnique({
+    where: { slug },
+    select: {
+      ...safeServiceSelect,
+      description: true,
+      fee_note: true,
+      batches: {
+        where: { status: { not: "CANCELLED" } },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          status: true,
+          max_students: true,
+          enrolled_count: true,
+          start_date: true,
+          end_date: true,
+          schedule: {
+            select: {
+              day: true,
+              start_time: true,
+              end_time: true,
+            }
+          }
+        },
+        orderBy: { created_at: "asc" }
+      },
+      _count: {
+        select: {
+          batches: { where: { status: { not: "CANCELLED" } } }
+        }
+      }
+    }
+  });
+  if (!service) throw new Error("NOT_FOUND");
+  return service;
+}
+
 export async function updateService(serviceId: string, teacherId: string, input: UpdateServiceInput) {
   const service = await prisma.service.findUnique({ where: { id: serviceId } });
   if (!service) throw new Error("NOT_FOUND");

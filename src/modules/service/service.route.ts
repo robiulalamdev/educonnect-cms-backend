@@ -6,6 +6,7 @@ import {
   createServiceController,
   getServiceListController,
   getServiceByIdController,
+  getServiceBySlugController,
   updateServiceController,
   getTeacherServicesController,
   getAdminServicesController,
@@ -15,6 +16,7 @@ import {
 export async function serviceRoutes(fastify: FastifyInstance) {
   // ── Root / Public ──────────────────────────────────────────
   fastify.get("/", getServiceListController);
+  fastify.get("/slug/:slug", getServiceBySlugController);
   fastify.get("/:id", getServiceByIdController);
   fastify.get("/dropdown/root", getServicesDropdownController);
 

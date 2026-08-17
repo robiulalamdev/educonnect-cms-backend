@@ -14,29 +14,35 @@ import {
   changePasswordController,
 } from "./auth.controller.js";
 
+// Stricter rate limit config for sensitive auth endpoints
+const authRateLimit = {
+  max: 10,
+  timeWindow: 15 * 60 * 1000, // 15 minutes
+};
+
 export async function authRoutes(fastify: FastifyInstance) {
   // ── Public — no auth required ──────────────────────────
 
   // POST /api/v1/auth/register
-  fastify.post("/register", registerController);
+  fastify.post("/register", { config: { rateLimit: authRateLimit } }, registerController);
 
   // POST /api/v1/auth/login
-  fastify.post("/login", loginController);
+  fastify.post("/login", { config: { rateLimit: authRateLimit } }, loginController);
 
   // POST /api/v1/auth/refresh
   fastify.post("/refresh", refreshController);
 
   // POST /api/v1/auth/verify-email
-  fastify.post("/verify-email", verifyEmailController);
+  fastify.post("/verify-email", { config: { rateLimit: authRateLimit } }, verifyEmailController);
 
   // POST /api/v1/auth/resend-verification
-  fastify.post("/resend-verification", resendVerificationController);
+  fastify.post("/resend-verification", { config: { rateLimit: authRateLimit } }, resendVerificationController);
 
   // POST /api/v1/auth/forgot-password
-  fastify.post("/forgot-password", forgotPasswordController);
+  fastify.post("/forgot-password", { config: { rateLimit: authRateLimit } }, forgotPasswordController);
 
   // POST /api/v1/auth/reset-password
-  fastify.post("/reset-password", resetPasswordController);
+  fastify.post("/reset-password", { config: { rateLimit: authRateLimit } }, resetPasswordController);
 
   // ── Protected — require valid user token ───────────────
 
