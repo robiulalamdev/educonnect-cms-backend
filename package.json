@@ -11,7 +11,9 @@
     "prisma:generate": "prisma generate --config prisma.config.js",
     "prisma:studio": "prisma studio --config prisma.config.js",
     "create:super-admin": "npx tsx src/scripts/create-super-admin.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +28,8 @@
     "@fastify/multipart": "^9.4.0",
     "@fastify/rate-limit": "^11.1.0",
     "@fastify/sensible": "^6.0.4",
+    "@fastify/swagger": "^9.8.1",
+    "@fastify/swagger-ui": "^5.0.0",
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
     "bcryptjs": "^3.0.3",
@@ -46,6 +50,7 @@
     "@types/node": "^25.6.0",
     "@types/nodemailer": "^8.0.0",
     "@types/pg": "^8.18.0",
+    "@vitest/coverage-v8": "^2.0.0",
     "dotenv": "^17.4.1",
     "eslint": "^10.0.3",
     "nodemon": "^3.1.14",
@@ -53,7 +58,8 @@
     "prisma": "^7.7.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^2.0.0"
   },
   "overrides": {
     "@hono/node-server": "^1.19.13"

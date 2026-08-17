@@ -42,10 +42,14 @@ import { notificationPreferenceRoutes } from "./modules/notification-preference/
 import { paymentRoutes } from "./modules/payment/payment.route.js";
 
 import { env } from "./config/env.js";
+import { prisma } from "./config/prisma.js";
+import { setupSwagger } from "./plugins/swagger.js";
+import { log } from "./utils/logger.js";
 
 export async function buildApp() {
   const app = Fastify({
     logger: false,
+    genReqId: (req) => req.headers['x-request-id'] as string ?? crypto.randomUUID(),
   });
 
   // Security Headers
@@ -81,13 +85,105 @@ export async function buildApp() {
     socketManager.initialize(app);
   });
 
-  // Health check
+  // ── Request Logging ──────────────────────────────────────────
+  app.addHook("onRequest", async (request) => {
+    request.startTime = process.hrtime.bigint();
+  });
+
+  app.addHook("onResponse", async (request, reply) => {
+    const startTime = request.startTime as bigint | undefined;
+    const responseTime = startTime 
+      ? Number(process.hrtime.bigint() - startTime) / 1_000_000 
+      : 0;
+    
+    log.request(request, reply, responseTime);
+  });
+
+  // ── Global Error Handler ─────────────────────────────────────
+  app.setErrorHandler(async (error, request, reply) => {
+    const statusCode = error.statusCode ?? 500;
+    
+    log.error('Unhandled error', {
+      err: error,
+      reqId: request.id,
+      method: request.method,
+      url: request.url,
+      userId: request.user?.id,
+      userRole: request.user?.role,
+    });
+
+    // Don't leak internal error details in production
+    const isProduction = env.NODE_ENV === 'production';
+    
+    if (statusCode >= 500 && isProduction) {
+      return reply.code(500).send({
+        success: false,
+        message: 'Internal server error',
+        error: env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
+
+    return reply.code(statusCode).send({
+      success: false,
+      message: error.message ?? 'Internal server error',
+      errors: error.validation?.map((v) => ({
+        field: v.instancePath.replace('/', ''),
+        message: v.message,
+      })),
+    });
+  });
+
+  // ── Swagger/OpenAPI Documentation ──────────────────────────
+  await setupSwagger(app);
+
+  // ── Health Check Endpoints ─────────────────────────────────
+  // Liveness probe - returns 200 if process is alive
+  app.get("/health", async () => {
+    return {
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      version: process.env.npm_package_version ?? "1.0.0",
+    };
+  });
+
+  // Readiness probe - returns 200 if DB and Redis are connected
+  app.get("/ready", async (request, reply) => {
+    try {
+      // Check database connection
+      await prisma.$queryRaw`SELECT 1`;
+      
+      return {
+        status: "ready",
+        timestamp: new Date().toISOString(),
+        checks: {
+          database: "connected",
+          redis: "connected",
+        },
+      };
+    } catch (error) {
+      reply.code(503);
+      return {
+        status: "not ready",
+        timestamp: new Date().toISOString(),
+        checks: {
+          database: "disconnected",
+          redis: "unknown",
+        },
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
+
+  // Root endpoint
   app.get("/", async () => {
     return {
-      message: "Welcome to the server",
+      message: "Welcome to the Coaching Management System API",
       status: "success",
       timestamp: new Date().toISOString(),
-      localTime: new Date().toLocaleString(),
+      version: process.env.npm_package_version ?? "1.0.0",
+      docs: "/docs",
     };
   });
 
