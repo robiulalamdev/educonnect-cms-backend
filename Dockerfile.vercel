@@ -12,6 +12,11 @@ RUN npm ci
 ENV NODE_ENV=production
 ENV PORT=80
 
+# Build-time placeholder so `prisma generate` can resolve its datasource URL.
+# prisma generate does NOT connect to the DB; the real DATABASE_URL from
+# Vercel project env vars overrides this at runtime.
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder?schema=public"
+
 COPY tsconfig.json ./
 COPY src ./src
 
