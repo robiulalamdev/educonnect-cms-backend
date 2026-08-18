@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Install ALL deps (dev included) so tsx + prisma CLI are available.
 # Do this BEFORE setting NODE_ENV=production, otherwise npm skips devDependencies.
+COPY .npmrc ./
 COPY package*.json ./
 COPY prisma.config.js ./
 RUN npm ci
