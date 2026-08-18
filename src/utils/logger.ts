@@ -1,5 +1,4 @@
 import pino, { Logger, LoggerOptions } from 'pino';
-import pinoRoll from 'pino-roll';
 import pinoPretty from 'pino-pretty';
 import path from 'path';
 import { env } from '../config/env.js';
@@ -74,16 +73,23 @@ class AppLogger {
       this.logger = pino(options, prettyStream);
     } else {
       // File rotation in production
-      const fileStream = pinoRoll({
-        file: path.join(process.cwd(), 'logs', 'app'),
-        frequency: 'daily',
-        dateFormat: 'yyyy-MM-dd',
-        extension: '.log',
-        mkdir: true,
-        size: '10m',
-        maxFiles: '30d',
-      });
-      this.logger = pino(options, fileStream);
+      this.logger = pino(
+        {
+          ...options,
+          transport: {
+            target: 'pino-roll',
+            options: {
+              file: path.join(process.cwd(), 'logs', 'app'),
+              frequency: 'daily',
+              dateFormat: 'yyyy-MM-dd',
+              extension: '.log',
+              mkdir: true,
+              size: '10m',
+              maxFiles: '30d',
+            },
+          },
+        },
+      );
     }
   }
 

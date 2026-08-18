@@ -122,6 +122,14 @@ export async function parseMultipart(
   const fields: Record<string, any> = {};
   const files: Record<string, ParsedFile[]> = {};
 
+  const isMultipart = (req as any).isMultipart?.() ?? false;
+
+  // Not a multipart request (e.g. JSON body) — use the parsed body directly.
+  if (!isMultipart) {
+    const body = (req.body ?? {}) as Record<string, any>;
+    return { fields: body, file: undefined, files };
+  }
+
   const parts = req.parts();
 
   for await (const part of parts) {
