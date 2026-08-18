@@ -10,6 +10,7 @@
     "prisma:migrate": "prisma migrate dev --config prisma.config.js",
     "prisma:generate": "prisma generate --config prisma.config.js",
     "prisma:studio": "prisma studio --config prisma.config.js",
+    "prisma:seed": "npx tsx seed.ts",
     "create:super-admin": "npx tsx src/scripts/create-super-admin.ts",
     "test": "vitest run",
     "test:watch": "vitest",

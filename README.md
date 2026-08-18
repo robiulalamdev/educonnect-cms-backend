@@ -2,9 +2,37 @@
 
 > **Version:** 2.0.0 | **Node:** 20+ | **TypeScript** | **Fastify** | **Prisma** | **PostgreSQL**
 
-A production-ready backend API for EduConnect connecting teachers with students/guardians in Bangladesh.
+A production-ready backend API for **EduConnect** — a coaching management platform connecting **teachers** with **students** and **guardians** across Bangladesh.
 
----
+## 🌐 Live URLs
+
+| Environment | URL |
+|-------------|-----|
+| Production API | https://educonnect-cms-api.vercel.app |
+| Swagger / API Docs | https://educonnect-cms-api.vercel.app/docs |
+| Health Check | https://educonnect-cms-api.vercel.app/health |
+| Readiness Probe | https://educonnect-cms-api.vercel.app/ready |
+
+> The frontend is deployed at **https://educonnect-cms.vercel.app** (user app) with the admin panel at `/admin`.
+
+## ✨ Features
+
+- **Role-based platform** — Super Admin, Teacher, Student, Guardian with dedicated dashboards
+- **Authentication & security** — Email OTP registration, JWE-encrypted access/refresh tokens in HttpOnly cookies, separate admin auth, rate limiting, Helmet security headers
+- **Coaching services** — Teachers create services (subjects, levels, price, batch size), students discover & enroll
+- **Batches & schedules** — Class groups with recurring schedules, one-off overrides, batch-wide announcements
+- **Enrollment & payments** — Join batches, subscription packages (Free / Pro / Elite), payment processing
+- **Attendance tracking** — Mark & view attendance per batch/session, reports
+- **Tasks & grading** — Create assignments, student submissions, teacher grading
+- **Daily notes** — Teachers/students share progress notes with visibility controls
+- **Social layer** — Posts (seek/offer), comments, likes, follows, blocks, reviews & ratings, 24h stories
+- **Real-time chat** — Direct & group messaging via Socket.io
+- **Notifications** — In-app, email (Gmail SMTP), and push (Firebase FCM); granular preferences; device token management
+- **Bangladesh location system** — Division → District → Area/Upazila with geocoding for radius search
+- **Education taxonomy** — Education level groups (Primary → Skills & Tests), classes, subjects, categories
+- **Admin panel API** — User/teacher management, teacher approvals, content moderation, analytics, audit logs
+- **Statistics & analytics** — Dashboard metrics for both user and admin sides
+- **AI assistant** — Powered by OpenRouter (frontend)
 
 ## 🚀 Quick Start
 
@@ -47,16 +75,16 @@ docker-compose up -d
 
 ### 👤 Demo Accounts
 
-All demo accounts share the password `123456`:
+All demo accounts share the password `123456` and are seeded via `npm run prisma:seed`:
 
-| Role | Email |
-|------|-------|
-| Super Admin | `superadmin@ec.com` |
-| Teacher | `teacher@ec.com` |
-| Student | `student@ec.com` |
-| Guardian | `guardian@ec.com` |
+| Role | Email | Login Endpoint |
+|------|-------|----------------|
+| Super Admin | `superadmin@ec.com` | `/api/v1/admin/auth/login` |
+| Teacher | `teacher@ec.com` | `/api/v1/auth/login` |
+| Student | `student@ec.com` | `/api/v1/auth/login` |
+| Guardian | `guardian@ec.com` | `/api/v1/auth/login` |
 
-> Super Admin signs in via `/api/v1/admin/auth/login`; the rest via `/api/v1/auth/login`.
+> **Tip:** Log in through the frontend at **https://educonnect-cms.vercel.app** (Super Admin uses the `/admin` portal).
 
 ---
 
@@ -199,7 +227,7 @@ Division → District → Area/Upazila
 ### Base URL
 ```
 Development: http://localhost:9000/api/v1
-Production:  https://api.yourdomain.com/api/v1
+Production:  https://educonnect-cms-api.vercel.app/api/v1
 ```
 
 ### Endpoints by Module
@@ -244,6 +272,7 @@ GET /ready         # Readiness probe (DB, Redis)
 ### Swagger UI
 ```
 Development: http://localhost:9000/docs
+Production:  https://educonnect-cms-api.vercel.app/docs
 ```
 
 ---
@@ -327,6 +356,7 @@ npm run test:watch
 | `npm run prisma:migrate` | Run migrations (dev) |
 | `npm run prisma:migrate deploy` | Run migrations (prod) |
 | `npm run prisma:studio` | Open Prisma Studio |
+| `npm run prisma:seed` | Seed the database with demo accounts & sample data |
 | `npm run create:super-admin` | Create initial admin user |
 | `npm run lint` | Run ESLint |
 | `npm test` | Run tests |
@@ -359,13 +389,25 @@ docker-compose up -d
 
 ## 🚀 Deployment
 
-### Environment Variables (Production)
-Set all variables from `.env.example` with production values:
-- Use strong secrets (32+ chars)
-- Set `NODE_ENV=production`
-- Use managed PostgreSQL (RDS, Cloud SQL, etc.)
-- Use managed Redis (ElastiCache, etc.)
-- Configure Cloudinary, Firebase, Email with production credentials
+### Vercel (Container Runtime)
+
+This repo includes a **container deployment** setup for Vercel:
+
+- `Dockerfile.vercel` — Production image (Node 22 alpine, Prisma client generation, runs via `tsx`)
+- `vercel.json` — Routes all traffic to the container service
+- `.vercelignore` — Excludes `.env`, `seed.ts`-adjacent local artifacts, etc.
+- `.npmrc` — `legacy-peer-deps=true` (required for `fastify-socket.io` + Fastify 5)
+
+**Live:** https://educonnect-cms-api.vercel.app
+
+**Deploy steps:**
+1. Connect the repo to Vercel (or run `vercel --prod` from the `backend/` folder)
+2. Set all environment variables from `.env.example` (do **not** push `.env`)
+3. Set `NODE_ENV=production` and **leave `PORT` unset** — the container listens on port 80
+
+> ⚠️ Important: when copying values from a local `.env`, remove inline comments
+> (e.g. `86400000 # 1day`) — dotenv strips them locally, but Vercel injects the raw
+> string, which breaks numeric validation.
 
 ### Database Migrations
 ```bash
