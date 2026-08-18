@@ -21,7 +21,7 @@ process.env.ADMIN_COOKIE_ACCESS_NAME = 'cms_admin_access';
 process.env.ADMIN_COOKIE_REFRESH_NAME = 'cms_admin_refresh';
 process.env.ADMIN_COOKIE_ACCESS_MAX_AGE = '3600000';
 process.env.ADMIN_COOKIE_REFRESH_MAX_AGE = '604800000';
-process.env.ADMIN_PANEL_ORIGINS = 'http://localhost:3000';
+process.env.ADMIN_PANEL_ORIGINS = 'https://educonnect-cms.vercel.app';
 process.env.CLOUDINARY_CLOUD_NAME = 'test';
 process.env.CLOUDINARY_API_KEY = 'test';
 process.env.CLOUDINARY_API_SECRET = 'test';
@@ -31,9 +31,9 @@ process.env.GMAIL_APP_PASS = 'test';
 process.env.FIREBASE_PROJECT_ID = 'test';
 process.env.FIREBASE_CLIENT_EMAIL = 'test@test.iam.gserviceaccount.com';
 process.env.FIREBASE_PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----\n';
-process.env.FRONTEND_URL = 'http://localhost:3000';
-process.env.ADMIN_FRONTEND_URL = 'http://localhost:3000';
-process.env.CORS_ORIGINS = 'http://localhost:3000';
+process.env.FRONTEND_URL = 'https://educonnect-cms.vercel.app';
+process.env.ADMIN_FRONTEND_URL = 'https://educonnect-cms.vercel.app';
+process.env.CORS_ORIGINS = 'https://educonnect-cms.vercel.app';
 
 // Global test timeout
 vi.setConfig({ testTimeout: 10000 });
