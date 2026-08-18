@@ -45,6 +45,19 @@ Server runs at `http://localhost:9000`
 docker-compose up -d
 ```
 
+### 👤 Demo Accounts
+
+All demo accounts share the password `123456`:
+
+| Role | Email |
+|------|-------|
+| Super Admin | `superadmin@ec.com` |
+| Teacher | `teacher@ec.com` |
+| Student | `student@ec.com` |
+| Guardian | `guardian@ec.com` |
+
+> Super Admin signs in via `/api/v1/admin/auth/login`; the rest via `/api/v1/auth/login`.
+
 ---
 
 ## 📦 Tech Stack
