@@ -2,7 +2,6 @@ import Fastify from "fastify";
 import helmet from "@fastify/helmet";
 import cookie from "@fastify/cookie";
 import multipart from "@fastify/multipart";
-import fastifySocketIo from "fastify-socket.io";
 import { socketManager } from "./config/socket.js";
 
 // Plugins
@@ -73,15 +72,22 @@ export async function buildApp() {
   });
 
   // Socket.io Integration
-  app.register(fastifySocketIo, {
-    cors: {
-      origin: [env.FRONTEND_URL, env.ADMIN_FRONTEND_URL],
-      credentials: true,
-    },
-  });
+  // Note: we wire socket.io directly onto Fastify's HTTP server (app.server)
+  // instead of using fastify-socket.io, because fastify-socket.io@5.1.0 only
+  // supports Fastify 4 and crashes ("stream.write is not a function") on
+  // Fastify 5 when broadcasting to connected clients.
+  app.decorate("io", null);
 
   // Initialize SocketManager once server is ready
   app.addHook("onReady", async () => {
+    const { Server } = await import("socket.io");
+    const { env } = await import("./config/env.js");
+    app.io = new Server(app.server, {
+      cors: {
+        origin: [env.FRONTEND_URL, env.ADMIN_FRONTEND_URL],
+        credentials: true,
+      },
+    });
     socketManager.initialize(app);
   });
 

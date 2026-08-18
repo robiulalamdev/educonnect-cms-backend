@@ -27,7 +27,7 @@ export async function subscriptionRoutes(fastify: FastifyInstance) {
   // Authenticated: user subscription
   fastify.get("/me", { preHandler: [authenticate, requireRole(...ALL_USERS)] }, getMySubscriptionController);
   fastify.get("/me/history", { preHandler: [authenticate, requireRole(...ALL_USERS)] }, getMySubscriptionHistoryController);
-  fastify.post("/subscribe", { preHandler: [authenticate, requireRole(USER_TYPES.ROLE_OBJECT.TEACHER)] }, subscribeController);
+  fastify.post("/subscribe", { preHandler: [authenticate, requireRole(...ALL_USERS)] }, subscribeController);
 
   // Admin: package CRUD + grant/revoke
   fastify.register(async (adminRoutes) => {
