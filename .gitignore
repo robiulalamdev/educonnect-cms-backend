@@ -201,3 +201,4 @@ vite.config.ts.timestamp-*
 
 # src/database/migrations
 src/database/generated/prisma
+.vercel
