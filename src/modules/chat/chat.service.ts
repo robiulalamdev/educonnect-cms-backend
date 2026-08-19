@@ -92,7 +92,13 @@ export async function getChatList(userId: string, query: ChatQueryInput) {
         messages: {
           take: 1,
           orderBy: { created_at: "desc" },
-          select: { body: true, created_at: true, sender_id: true }
+          select: {
+            body: true,
+            created_at: true,
+            sender_id: true,
+            sender: { select: { full_name: true } },
+            media: { take: 1, select: { mime_type: true, filename: true } },
+          }
         },
         // unread_count is maintained incrementally in chat_read_trackings —
         // no per-chat COUNT query needed
