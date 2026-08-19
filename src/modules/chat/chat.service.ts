@@ -93,7 +93,7 @@ export async function getChatList(userId: string, query: ChatQueryInput) {
         messages: {
           take: 1,
           orderBy: { created_at: "desc" },
-          select: { body: true, created_at: true }
+          select: { body: true, created_at: true, sender_id: true }
         }
       }
     }),
@@ -102,8 +102,33 @@ export async function getChatList(userId: string, query: ChatQueryInput) {
     })
   ]);
 
+  // Compute unread count per chat (messages newer than the user's last_read, excluding their own)
+  const unreadMap: Record<string, number> = {};
+  const chatIds = chats.map((c) => c.id);
+  if (chatIds.length > 0) {
+    const participants = await prisma.chatParticipant.findMany({
+      where: { user_id: userId, chat_id: { in: chatIds } },
+      select: { chat_id: true, last_read: true }
+    });
+    for (const p of participants) {
+      const count = await prisma.message.count({
+        where: {
+          chat_id: p.chat_id,
+          sender_id: { not: userId },
+          created_at: { gt: p.last_read ?? new Date(0) },
+        },
+      });
+      unreadMap[p.chat_id] = count;
+    }
+  }
+
+  const data = chats.map((chat) => ({
+    ...chat,
+    unread_count: unreadMap[chat.id] ?? 0,
+  }));
+
   return {
-    data: chats,
+    data,
     meta: {
       total,
       page,
@@ -175,6 +200,10 @@ export async function sendMessage(chatId: string, senderId: string, input: SendM
     }
   }
 
+  // Enforce max 3 attachments (matches docs + multipart config)
+  const totalMedia = (media_ids?.length ?? 0) + (mediaUploads?.length ?? 0);
+  if (totalMedia > 3) throw new Error("TOO_MANY_MEDIA");
+
   const message = await prisma.$transaction(async (tx) => {
     const msg = await tx.message.create({
       data: {
@@ -185,7 +214,7 @@ export async function sendMessage(chatId: string, senderId: string, input: SendM
           connect: media_ids?.map(id => ({ id })) || []
         }
       },
-      select: safeMessageSelect
+      select: { id: true }
     });
 
     // Update chat for sorting
@@ -197,10 +226,62 @@ export async function sendMessage(chatId: string, senderId: string, input: SendM
     return msg;
   });
 
-  // Real-time broadcast
-  socketManager.emitToRoom(`chat_${chatId}`, "new_message", message);
+  // Upload new files and attach to the message (outside the DB transaction)
+  if (mediaUploads && mediaUploads.length > 0) {
+    const uploadedIds = await uploadMessageMedia(mediaUploads, senderId, message.id);
+    if (uploadedIds.length > 0) {
+      await prisma.message.update({
+        where: { id: message.id },
+        data: { media: { connect: uploadedIds.map(id => ({ id })) } },
+      });
+    }
+  }
 
-  return message;
+  const fullMessage = await prisma.message.findUnique({
+    where: { id: message.id },
+    select: safeMessageSelect
+  });
+
+  // Real-time broadcast
+  socketManager.emitToRoom(`chat_${chatId}`, "new_message", fullMessage);
+
+  return fullMessage;
+}
+
+// Upload message attachments to Cloudinary and persist Media rows (max 3 total)
+async function uploadMessageMedia(
+  uploads: UploadInput[],
+  senderId: string,
+  messageId: string,
+): Promise<string[]> {
+  const mediaIds: string[] = [];
+
+  for (const upload of uploads) {
+    const result = await uploadToCloudinary(upload);
+
+    const media = await prisma.media.create({
+      data: {
+        key: result.public_id,
+        filename: result.filename,
+        mime_type: result.mimetype,
+        size: result.size,
+        type: result.mimetype.startsWith("image/")
+          ? "IMAGE"
+          : result.mimetype.startsWith("video/")
+            ? "VIDEO"
+            : "DOCUMENT",
+        width: result.width ?? null,
+        height: result.height ?? null,
+        owner_type: "MESSAGE",
+        message_id: messageId,
+        uploaded_by_id: senderId,
+      },
+    });
+
+    mediaIds.push(media.id);
+  }
+
+  return mediaIds;
 }
 
 export async function markChatRead(chatId: string, userId: string) {

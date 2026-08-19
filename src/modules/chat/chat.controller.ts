@@ -117,6 +117,9 @@ export async function sendMessageController(req: FastifyRequest, reply: FastifyR
     if (err.message === "USER_BLOCKED") {
       return reply.status(403).send({ success: false, message: "Cannot send message to this user" });
     }
+    if (err.message === "TOO_MANY_MEDIA") {
+      return reply.status(400).send({ success: false, message: "A message can have up to 3 attachments" });
+    }
     throw err;
   }
 }
