@@ -87,9 +87,9 @@ export const CLD_ACCEPTED_TYPES: Record<CldFolder, string[]> = {
     "image/jpeg",
     "image/png",
     "image/webp",
-    // "application/pdf",
-    // "application/msword",
-    // "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ],
 };
 
@@ -113,10 +113,10 @@ export const MIME_TO_RESOURCE_TYPE: Record<string, "image" | "raw"> = {
   "image/jpeg": "image",
   "image/png": "image",
   "image/webp": "image",
-  //   "application/pdf": "raw",
-  //   "application/msword": "raw",
-  //   "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-  //     "raw",
+  "application/pdf": "raw",
+  "application/msword": "raw",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+    "raw",
 };
 
 // ── Mime → extension map ───────────────────────────────────
@@ -125,7 +125,7 @@ export const MIME_TO_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
-  //   "application/pdf":  "pdf",
-  //   "application/msword": "doc",
-  //   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/pdf": "pdf",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
 };
