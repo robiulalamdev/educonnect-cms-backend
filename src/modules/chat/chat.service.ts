@@ -8,7 +8,6 @@ const safeMessageSelect = {
   id: true,
   body: true,
   sender_id: true,
-  status: true,
   created_at: true,
   sender: {
     select: {
@@ -94,6 +93,12 @@ export async function getChatList(userId: string, query: ChatQueryInput) {
           take: 1,
           orderBy: { created_at: "desc" },
           select: { body: true, created_at: true, sender_id: true }
+        },
+        // unread_count is maintained incrementally in chat_read_trackings —
+        // no per-chat COUNT query needed
+        read_trackings: {
+          where: { user_id: userId },
+          select: { unread_count: true }
         }
       }
     }),
@@ -102,29 +107,9 @@ export async function getChatList(userId: string, query: ChatQueryInput) {
     })
   ]);
 
-  // Compute unread count per chat (messages newer than the user's last_read, excluding their own)
-  const unreadMap: Record<string, number> = {};
-  const chatIds = chats.map((c) => c.id);
-  if (chatIds.length > 0) {
-    const participants = await prisma.chatParticipant.findMany({
-      where: { user_id: userId, chat_id: { in: chatIds } },
-      select: { chat_id: true, last_read: true }
-    });
-    for (const p of participants) {
-      const count = await prisma.message.count({
-        where: {
-          chat_id: p.chat_id,
-          sender_id: { not: userId },
-          created_at: { gt: p.last_read ?? new Date(0) },
-        },
-      });
-      unreadMap[p.chat_id] = count;
-    }
-  }
-
   const data = chats.map((chat) => ({
     ...chat,
-    unread_count: unreadMap[chat.id] ?? 0,
+    unread_count: chat.read_trackings[0]?.unread_count ?? 0,
   }));
 
   return {
@@ -159,8 +144,40 @@ export async function getMessages(chatId: string, userId: string, query: Message
     prisma.message.count({ where: { chat_id: chatId } })
   ]);
 
+  // Sender-facing read state, derived from the other participants' tracking:
+  //   READ      -> every other participant has last_read_at >= message.created_at
+  //   DELIVERED -> at least one other participant has read it
+  //   SENT      -> nobody has read it yet
+  const participants = await prisma.chatParticipant.findMany({
+    where: { chat_id: chatId },
+    select: { user_id: true }
+  });
+  const otherIds = participants
+    .map((p) => p.user_id)
+    .filter((id) => id !== userId);
+  const lastReadMap: Record<string, number> = {};
+  if (otherIds.length > 0) {
+    const trackings = await prisma.chatReadTracking.findMany({
+      where: { chat_id: chatId, user_id: { in: otherIds } },
+      select: { user_id: true, last_read_at: true }
+    });
+    for (const t of trackings) lastReadMap[t.user_id] = t.last_read_at.getTime();
+  }
+
+  const statusFor = (createdAt: Date) => {
+    if (otherIds.length === 0) return "SENT";
+    const readCount = otherIds.filter(
+      (id) => (lastReadMap[id] ?? 0) >= createdAt.getTime()
+    ).length;
+    if (readCount === 0) return "SENT";
+    return readCount >= otherIds.length ? "READ" : "DELIVERED";
+  };
+
   return {
-    data: messages.reverse(),
+    data: messages.reverse().map((m) => ({
+      ...m,
+      status: statusFor(m.created_at),
+    })),
     meta: {
       total,
       page,
@@ -223,6 +240,19 @@ export async function sendMessage(chatId: string, senderId: string, input: SendM
       data: { updated_at: new Date() }
     });
 
+    // Maintain unread counters for every OTHER participant (group-safe):
+    // one row per user per chat, incremented here and reset on markChatRead.
+    const otherIds = (chat?.participants ?? [])
+      .filter((p) => p.user_id !== senderId)
+      .map((p) => p.user_id);
+    for (const id of otherIds) {
+      await tx.chatReadTracking.upsert({
+        where: { chat_id_user_id: { chat_id: chatId, user_id: id } },
+        update: { unread_count: { increment: 1 } },
+        create: { chat_id: chatId, user_id: id, unread_count: 1 },
+      });
+    }
+
     return msg;
   });
 
@@ -242,10 +272,13 @@ export async function sendMessage(chatId: string, senderId: string, input: SendM
     select: safeMessageSelect
   });
 
-  // Real-time broadcast
-  socketManager.emitToRoom(`chat_${chatId}`, "new_message", fullMessage);
+  // A brand-new message hasn't been read by anyone yet.
+  const payload = { ...fullMessage, status: "SENT" };
 
-  return fullMessage;
+  // Real-time broadcast
+  socketManager.emitToRoom(`chat_${chatId}`, "new_message", payload);
+
+  return payload;
 }
 
 // Upload message attachments to Cloudinary and persist Media rows (max 3 total)
@@ -285,8 +318,24 @@ async function uploadMessageMedia(
 }
 
 export async function markChatRead(chatId: string, userId: string) {
-  return prisma.chatParticipant.update({
+  const existing = await prisma.chatReadTracking.findUnique({
     where: { chat_id_user_id: { chat_id: chatId, user_id: userId } },
-    data: { last_read: new Date() }
+    select: { unread_count: true },
   });
+  const wasUnread = (existing?.unread_count ?? 0) > 0;
+
+  // Advance the read cursor and reset the counter (one row per user per chat)
+  await prisma.chatReadTracking.upsert({
+    where: { chat_id_user_id: { chat_id: chatId, user_id: userId } },
+    update: { last_read_at: new Date(), unread_count: 0 },
+    create: { chat_id: chatId, user_id: userId, last_read_at: new Date(), unread_count: 0 },
+  });
+
+  // Notify the chat so senders can flip their ticks to the "seen" state
+  if (wasUnread) {
+    socketManager.emitToRoom(`chat_${chatId}`, "message_read", {
+      chat_id: chatId,
+      reader_id: userId,
+    });
+  }
 }

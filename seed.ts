@@ -739,8 +739,16 @@ async function main() {
     for (let m = 0; m < n; m++) {
       const tpl = msgTemplates[(i + m) % msgTemplates.length];
       const sender = m % 2 === 0 ? other.id : teacher.id;
-      const msg = await prisma.message.create({ data: { chat_id: chat.id, sender_id: sender, body: tpl[0], status: "SENT" } });
-      await prisma.messageReadReceipt.create({ data: { message_id: msg.id, user_id: sender === teacher.id ? other.id : teacher.id } }).catch(() => {});
+      const msg = await prisma.message.create({ data: { chat_id: chat.id, sender_id: sender, body: tpl[0] } });
+      await prisma.chatReadTracking.upsert({
+        where: { chat_id_user_id: { chat_id: chat.id, user_id: sender === teacher.id ? other.id : teacher.id } },
+        update: {},
+        create: {
+          chat_id: chat.id,
+          user_id: sender === teacher.id ? other.id : teacher.id,
+          unread_count: 0,
+        },
+      }).catch(() => {});
       msgCount++;
     }
     chatCount++;
