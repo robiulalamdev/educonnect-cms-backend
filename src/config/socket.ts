@@ -47,9 +47,13 @@ export class SocketManager {
         if (!token) return next(new Error("UNAUTHORIZED"));
 
         // If the cookie is signed (prefix s:), we need to unsign it.
-        // Fastify signs like "s:token.signature"
-        if (token.startsWith("s%3A")) {
-           token = decodeURIComponent(token).slice(2).split(".")[0];
+        // Fastify signs like "s:<value>.<signature>". The value is a compact
+        // JWE that itself contains dots, so only strip the signature after
+        // the LAST dot and keep the full token.
+        if (token.startsWith("s%3A") || token.startsWith("s:")) {
+          token = decodeURIComponent(token).slice(2);
+          const lastDot = token.lastIndexOf(".");
+          if (lastDot > 0) token = token.slice(0, lastDot);
         }
 
         try {

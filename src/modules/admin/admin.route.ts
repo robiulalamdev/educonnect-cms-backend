@@ -60,9 +60,15 @@ const {
 } = ADMIN_TYPES.PERMISSIONS;
 
 export async function adminRoutes(fastify: FastifyInstance) {
+  // Stricter rate limit for sensitive admin auth endpoints
+  const adminAuthRateLimit = {
+    max: 10,
+    timeWindow: 15 * 60 * 1000, // 15 minutes
+  };
+
   // ── Auth — /api/v1/admin/auth ──────────────────────────
-  fastify.post("/auth/login", loginController);
-  fastify.post("/auth/refresh", refreshController);
+  fastify.post("/auth/login", { config: { rateLimit: adminAuthRateLimit } }, loginController);
+  fastify.post("/auth/refresh", { config: { rateLimit: adminAuthRateLimit } }, refreshController);
   fastify.post(
     "/auth/logout",
     { preHandler: [verifyAdminToken] },
