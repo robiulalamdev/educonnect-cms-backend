@@ -439,6 +439,11 @@ export async function forgotPassword(input: ForgotPasswordInput) {
   const resetToken = crypto.randomInt(100000, 999999).toString();
   const resetExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
+  // Send the reset email immediately
+  emailService
+    .sendPasswordResetEmail(user.email, resetToken)
+    .catch(console.error);
+
   await prisma.emailQueue.create({
     data: {
       to_email: user.email,
@@ -458,13 +463,17 @@ export async function forgotPassword(input: ForgotPasswordInput) {
 // ── Reset Password ─────────────────────────────────────────
 
 export async function resetPassword(input: ResetPasswordInput) {
-  const entry = await prisma.emailQueue.findFirst({
-    where: {
-      template: "password_reset",
-      sent: false,
-    },
+  // Find the pending reset entry whose payload token matches — never match
+  // the most recent entry globally (would let another user's token reset
+  // someone else's password).
+  const pending = await prisma.emailQueue.findMany({
+    where: { template: "password_reset", sent: false },
     orderBy: { created_at: "desc" },
   });
+
+  const entry = pending.find(
+    (e) => (e.payload as Record<string, any>)?.token === input.token,
+  );
 
   if (!entry) throw new Error("INVALID_TOKEN");
 

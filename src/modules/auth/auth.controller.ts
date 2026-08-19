@@ -101,6 +101,12 @@ export async function loginController(
         success: false,
         message: "Your account has been permanently banned.",
       });
+    if (err.message === "ACCOUNT_PENDING_APPROVAL")
+      return reply.status(403).send({
+        success: false,
+        message:
+          "Your account is pending approval. Please wait for an admin to approve it.",
+      });
     throw err;
   }
 }

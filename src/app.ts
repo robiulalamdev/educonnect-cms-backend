@@ -63,11 +63,12 @@ export async function buildApp() {
     hook: "onRequest",
   });
 
-  // Multipart for file uploads — 10MB limit
+  // Multipart for file uploads — 10MB limit, up to 5 files
+  // (chat attachments allow up to 3 media files per message)
   app.register(multipart, {
     limits: {
       fileSize: 10 * 1024 * 1024, // 10MB
-      files: 1,
+      files: 5,
     },
   });
 
