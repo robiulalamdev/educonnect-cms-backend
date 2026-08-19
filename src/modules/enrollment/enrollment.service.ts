@@ -378,6 +378,9 @@ export async function updateEnrollmentStatus(
         await tx.chatParticipant.deleteMany({
           where: { chat_id: chat.id, user_id: enrollment.student.user_id },
         });
+        await tx.chatReadTracking.deleteMany({
+          where: { chat_id: chat.id, user_id: enrollment.student.user_id },
+        });
       }
     }
 

@@ -166,12 +166,6 @@ enum ChatType {
     BATCH_GROUP // auto-created per batch
 }
 
-enum MessageStatus {
-    SENT
-    DELIVERED
-    READ
-}
-
 // --- Engagement ---
 
 enum ReviewStatus {

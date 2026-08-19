@@ -26,6 +26,7 @@ model Chat {
 
     participants ChatParticipant[]
     messages     Message[]
+    read_trackings ChatReadTracking[]
 
     @@index([service_id])
     @@map("chats")
@@ -38,11 +39,37 @@ model ChatParticipant {
     user_id   String
     user      User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
     joined_at DateTime  @default(now())
-    last_read DateTime? // used to calculate unread count
     is_muted  Boolean   @default(false)
 
     @@unique([chat_id, user_id])
     @@map("chat_participants")
+}
+
+// ============================================================
+// READ TRACKING — separate schema, per user per chat/group.
+// Mirrors the MongoDB ReadTracking pattern: ONE row per user per
+// chat instead of per-message flags. This scales for group chats
+// with many participants.
+//   last_read_at: timestamp of the last message the user read
+//   unread_count: incrementally maintained on send, reset on read
+//     (avoids expensive per-chat COUNT queries for the inbox)
+// Indexed on (chat_id, user_id) unique and (user_id, last_read_at)
+// for fast lookup of unread conversations.
+// ============================================================
+
+model ChatReadTracking {
+    id           String   @id @default(cuid())
+    chat_id      String
+    chat         Chat     @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+    user_id      String
+    user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    last_read_at DateTime @default(now())
+    unread_count Int      @default(0)
+
+    @@unique([chat_id, user_id])
+    @@index([user_id, last_read_at])
+    @@index([chat_id, last_read_at])
+    @@map("chat_read_trackings")
 }
 
 model Message {
@@ -58,7 +85,6 @@ model Message {
     // so both parties know what they are discussing
     context_service_id String?
 
-    status     MessageStatus @default(SENT)
     is_deleted Boolean       @default(false)
 
     // reply threading
@@ -69,23 +95,8 @@ model Message {
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt
 
-    read_receipts MessageReadReceipt[]
-
     @@index([chat_id])
     @@index([sender_id])
     @@index([created_at])
     @@map("messages")
-}
-
-// Per-user read tracking — essential for group chats
-model MessageReadReceipt {
-    id         String   @id @default(cuid())
-    message_id String
-    message    Message  @relation(fields: [message_id], references: [id], onDelete: Cascade)
-    user_id    String
-    user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-    read_at    DateTime @default(now())
-
-    @@unique([message_id, user_id])
-    @@map("message_read_receipts")
 }

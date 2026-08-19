@@ -56,7 +56,7 @@ model User {
     followers         Follow[]             @relation("following")
     chat_participants ChatParticipant[]
     messages_sent     Message[]
-    read_receipts     MessageReadReceipt[]
+    chat_read_trackings ChatReadTracking[]
     notifications     Notification[]
     reviews_given     Review[]
     comments          Comment[]
