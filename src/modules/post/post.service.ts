@@ -12,6 +12,23 @@ const safePostSelect = {
   title: true,
   content: true,
   service_id: true,
+  service: {
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      mode: true,
+      format: true,
+      currency: true,
+      joining_fee: true,
+      monthly_fee: true,
+      per_session_fee: true,
+      subjects: {
+        take: 1,
+        select: { subject: { select: { id: true, name: true } } },
+      },
+    },
+  },
   preferred_mode: true,
   budget_min: true,
   budget_max: true,
@@ -97,10 +114,34 @@ async function deleteOldMedia(mediaIds: string[]) {
 
 export async function createPost(
   authorId: string,
+  role: string,
   input: CreatePostInput,
   mediaUploads?: UploadInput[],
 ) {
   const { media_ids, ...data } = input;
+
+  // Role-based post types:
+  //   TEACHER / COACHING_CENTER -> OFFERING (can attach their own service)
+  //   STUDENT / GUARDIAN        -> SEEKING only (they are looking to find)
+  const canOffer = role === "TEACHER" || role === "COACHING_CENTER";
+  if (data.type === "OFFERING" && !canOffer) {
+    throw new Error("SEEKERS_CANNOT_OFFER");
+  }
+  if (data.type === "SEEKING" && canOffer && role === "TEACHER") {
+    throw new Error("TEACHERS_CANNOT_SEEK");
+  }
+
+  // OFFERING posts may link to the author's OWN service
+  if (data.service_id) {
+    if (data.type !== "OFFERING") throw new Error("SERVICE_ONLY_FOR_OFFERING");
+    if (!canOffer) throw new Error("SERVICE_ONLY_FOR_TEACHERS");
+    const service = await prisma.service.findUnique({
+      where: { id: data.service_id },
+      select: { teacher_id: true },
+    });
+    if (!service) throw new Error("SERVICE_NOT_FOUND");
+    if (service.teacher_id !== authorId) throw new Error("FORBIDDEN_SERVICE");
+  }
 
   // Create post first (needed for post_id FK on Media)
   const post = await prisma.post.create({
@@ -193,6 +234,7 @@ export async function getPostById(id: string) {
 export async function updatePost(
   postId: string,
   authorId: string,
+  role: string,
   input: UpdatePostInput,
   mediaUploads?: UploadInput[],
 ) {
@@ -202,6 +244,25 @@ export async function updatePost(
   });
   if (!post) throw new Error("NOT_FOUND");
   if (post.author_id !== authorId) throw new Error("FORBIDDEN");
+
+  // Role-based post types (mirror createPost rules)
+  const canOffer = role === "TEACHER" || role === "COACHING_CENTER";
+  const nextType = input.type ?? post.type;
+  if (nextType === "OFFERING" && !canOffer) throw new Error("SEEKERS_CANNOT_OFFER");
+  if (nextType === "SEEKING" && canOffer && role === "TEACHER") {
+    throw new Error("TEACHERS_CANNOT_SEEK");
+  }
+
+  if (input.service_id) {
+    if (nextType !== "OFFERING") throw new Error("SERVICE_ONLY_FOR_OFFERING");
+    if (!canOffer) throw new Error("SERVICE_ONLY_FOR_TEACHERS");
+    const service = await prisma.service.findUnique({
+      where: { id: input.service_id },
+      select: { teacher_id: true },
+    });
+    if (!service) throw new Error("SERVICE_NOT_FOUND");
+    if (service.teacher_id !== authorId) throw new Error("FORBIDDEN_SERVICE");
+  }
 
   const { media_ids, ...data } = input;
 

@@ -22,8 +22,21 @@ const safeMessageSelect = {
   reply_to: {
     select: { id: true, body: true, sender_id: true }
   },
-  context_service_id: true
+  context_service_id: true,
+  mentions: {
+    select: {
+      mentioned_user: {
+        select: { id: true, username: true, full_name: true }
+      }
+    }
+  }
 } as const;
+
+// Extract @username tokens from a message body for mention support
+function extractMentions(body: string): string[] {
+  const matches = body.match(/@([\w.]+)/g) ?? [];
+  return [...new Set(matches.map((m) => m.slice(1).toLowerCase()))];
+}
 
 export async function getOrCreateDirectChat(userId: string, targetUserId: string) {
   // 0. Check if either user has blocked the other
@@ -79,11 +92,14 @@ export async function getChatList(userId: string, query: ChatQueryInput) {
       orderBy: { updated_at: "desc" },
       include: {
         participants: {
-          include: {
+          select: {
+            is_admin: true,
+            is_muted: true,
             user: {
               select: {
                 id: true,
                 full_name: true,
+                username: true,
                 avatar: { select: { key: true } }
               }
             }
@@ -227,6 +243,18 @@ export async function sendMessage(chatId: string, senderId: string, input: SendM
   const totalMedia = (media_ids?.length ?? 0) + (mediaUploads?.length ?? 0);
   if (totalMedia > 3) throw new Error("TOO_MANY_MEDIA");
 
+  // Resolve @mentions against the chat's participants so we can notify them
+  const usernames = extractMentions(data.body ?? "");
+  const mentionedUsers = usernames.length > 0
+    ? await prisma.user.findMany({
+        where: {
+          username: { in: usernames, mode: "insensitive" },
+          chat_participants: { some: { chat_id: chatId } },
+        },
+        select: { id: true, username: true, full_name: true },
+      })
+    : [];
+
   const message = await prisma.$transaction(async (tx) => {
     const msg = await tx.message.create({
       data: {
@@ -239,6 +267,16 @@ export async function sendMessage(chatId: string, senderId: string, input: SendM
       },
       select: { id: true }
     });
+
+    // Store mention links (one row per mentioned user) inside the transaction
+    if (mentionedUsers.length > 0) {
+      await tx.messageMention.createMany({
+        data: mentionedUsers.map((u) => ({
+          message_id: msg.id,
+          mentioned_user_id: u.id,
+        })),
+      });
+    }
 
     // Update chat for sorting
     await tx.chat.update({
@@ -283,6 +321,18 @@ export async function sendMessage(chatId: string, senderId: string, input: SendM
 
   // Real-time broadcast
   socketManager.emitToRoom(`chat_${chatId}`, "new_message", payload);
+
+  // Notify mentioned users (via their personal room) so they can highlight it
+  for (const u of mentionedUsers) {
+    if (u.id === senderId) continue;
+    socketManager.emitToUser(u.id, "mention_notification", {
+      chatId,
+      messageId: message.id,
+      mentioned_by: senderId,
+      mentioned_by_name: fullMessage?.sender?.full_name ?? "Someone",
+      body: data.body ?? "",
+    });
+  }
 
   return payload;
 }

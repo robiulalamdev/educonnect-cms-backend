@@ -40,6 +40,7 @@ model ChatParticipant {
     user      User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
     joined_at DateTime  @default(now())
     is_muted  Boolean   @default(false)
+    is_admin  Boolean   @default(false) // group admins (e.g. batch teacher)
 
     @@unique([chat_id, user_id])
     @@map("chat_participants")
@@ -89,8 +90,10 @@ model Message {
 
     // reply threading
     reply_to_id String?
-    reply_to    Message?  @relation("replies", fields: [reply_to_id], references: [id])
-    replies     Message[] @relation("replies")
+    reply_to    Message?     @relation("replies", fields: [reply_to_id], references: [id])
+    replies     Message[]    @relation("replies")
+
+    mentions MessageMention[]
 
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt
@@ -99,4 +102,19 @@ model Message {
     @@index([sender_id])
     @@index([created_at])
     @@map("messages")
+}
+
+// @mention — links a message to the users it tags so we can notify them
+// and highlight the tag in the UI. One row per mentioned user per message.
+model MessageMention {
+    id               String @id @default(cuid())
+    message_id       String
+    message          Message @relation(fields: [message_id], references: [id], onDelete: Cascade)
+    mentioned_user_id String
+    mentioned_user   User   @relation(fields: [mentioned_user_id], references: [id], onDelete: Cascade)
+    created_at       DateTime @default(now())
+
+    @@unique([message_id, mentioned_user_id])
+    @@index([mentioned_user_id])
+    @@map("message_mentions")
 }

@@ -49,8 +49,25 @@ export async function createPostController(req: FastifyRequest, reply: FastifyRe
     size: f.size,
   }));
 
-  const data = await createPost(authorId, input, mediaUploads);
-  return reply.send({ success: true, message: "Post created successfully", data });
+  try {
+    const data = await createPost(authorId, req.user!.role, input, mediaUploads);
+    return reply.send({ success: true, message: "Post created successfully", data });
+  } catch (err: any) {
+    const map: Record<string, number> = {
+      SEEKERS_CANNOT_OFFER: 403,
+      TEACHERS_CANNOT_SEEK: 403,
+      SERVICE_ONLY_FOR_OFFERING: 400,
+      SERVICE_ONLY_FOR_TEACHERS: 403,
+      FORBIDDEN_SERVICE: 403,
+    };
+    if (map[err.message]) {
+      return reply.status(map[err.message]).send({ success: false, message: err.message });
+    }
+    if (err.message === "SERVICE_NOT_FOUND") {
+      return reply.status(404).send({ success: false, message: "Service not found" });
+    }
+    throw err;
+  }
 }
 
 export async function getPostFeedController(req: FastifyRequest, reply: FastifyReply) {
@@ -110,8 +127,31 @@ export async function updatePostController(req: FastifyRequest, reply: FastifyRe
     size: f.size,
   }));
 
-  const data = await updatePost(id, authorId, input, mediaUploads);
-  return reply.send({ success: true, message: "Post updated successfully", data });
+  try {
+    const data = await updatePost(id, authorId, req.user!.role, input, mediaUploads);
+    return reply.send({ success: true, message: "Post updated successfully", data });
+  } catch (err: any) {
+    const map: Record<string, number> = {
+      SEEKERS_CANNOT_OFFER: 403,
+      TEACHERS_CANNOT_SEEK: 403,
+      SERVICE_ONLY_FOR_OFFERING: 400,
+      SERVICE_ONLY_FOR_TEACHERS: 403,
+      FORBIDDEN_SERVICE: 403,
+    };
+    if (map[err.message]) {
+      return reply.status(map[err.message]).send({ success: false, message: err.message });
+    }
+    if (err.message === "SERVICE_NOT_FOUND") {
+      return reply.status(404).send({ success: false, message: "Service not found" });
+    }
+    if (err.message === "NOT_FOUND") {
+      return reply.status(404).send({ success: false, message: "Post not found" });
+    }
+    if (err.message === "FORBIDDEN") {
+      return reply.status(403).send({ success: false, message: "You can only edit your own posts" });
+    }
+    throw err;
+  }
 }
 
 export async function getPostsDropdownController(req: FastifyRequest, reply: FastifyReply) {

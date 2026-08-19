@@ -66,7 +66,8 @@ export async function createBatch(teacherId: string, input: CreateBatchInput) {
         name: `${service.title} - ${batch.name}`,
         participants: {
           create: {
-            user_id: teacherId
+            user_id: teacherId,
+            is_admin: true,
           }
         }
       }

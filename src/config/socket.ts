@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { Server, Socket } from "socket.io";
 import { jwtDecrypt } from "jose";
 import { env } from "./env.js";
+import { prisma } from "./prisma.js";
 
 const adminAccessSecret = new TextEncoder().encode(env.ADMIN_JWT_ACCESS_SECRET);
 const userAccessSecret = new TextEncoder().encode(env.JWT_ACCESS_SECRET);
@@ -13,6 +14,11 @@ const userAccessSecret = new TextEncoder().encode(env.JWT_ACCESS_SECRET);
 export class SocketManager {
   private static instance: SocketManager;
   private io: Server | null = null;
+
+  // Presence tracking — in-memory for real-time status, DB `last_seen_at`
+  // persists the last offline time across restarts.
+  private onlineUsers = new Set<string>();
+  private socketUsers = new Map<string, string>(); // socketId -> userId
 
   private constructor() {}
 
@@ -87,8 +93,16 @@ export class SocketManager {
         socket.join("admin_dashboard");
       }
 
+      // 3. Presence — mark online and notify everyone (e.g. chat headers)
+      const wasOnline = this.onlineUsers.has(userId);
+      this.onlineUsers.add(userId);
+      this.socketUsers.set(socket.id, userId);
+      this.broadcastPresence(userId, true, undefined, wasOnline);
+
       socket.on("join_chat", (chatId: string) => {
         socket.join(`chat_${chatId}`);
+        // Send the current presence snapshot of this chat's members to the joiner
+        this.emitChatPresence(chatId, socket);
       });
 
       socket.on("leave_chat", (chatId: string) => {
@@ -106,14 +120,22 @@ export class SocketManager {
         socket.join(`post_${postId}`);
       });
 
-      socket.join("stories_feed");
-
       socket.on("leave_post", (postId: string) => {
         socket.leave(`post_${postId}`);
       });
 
+      socket.join("stories_feed");
+
       socket.on("disconnect", () => {
         console.log(`[Socket] User disconnected: ${userId}`);
+        this.onlineUsers.delete(userId);
+        this.socketUsers.delete(socket.id);
+        // Persist last seen so it survives restarts
+        prisma.user.update({
+          where: { id: userId },
+          data: { last_seen_at: new Date() },
+        }).catch(() => {});
+        this.broadcastPresence(userId, false, new Date());
       });
     });
   }
@@ -123,6 +145,57 @@ export class SocketManager {
    */
   emitToRoom(room: string, event: string, data: any) {
     this.io?.to(room).emit(event, data);
+  }
+
+  /**
+   * Emit an event directly to a single user's personal room
+   */
+  emitToUser(userId: string, event: string, data: any) {
+    this.io?.to(`user_${userId}`).emit(event, data);
+  }
+
+  /**
+   * Is a user currently online (connected via socket)?
+   */
+  isOnline(userId: string): boolean {
+    return this.onlineUsers.has(userId);
+  }
+
+  /**
+   * Broadcast a presence change to every connected client so chat UIs can
+   * update "online now / last seen" in real time.
+   */
+  private broadcastPresence(userId: string, online: boolean, lastSeen?: Date, wasOnline = false) {
+    // Only broadcast connect events for genuinely new connections
+    if (online && wasOnline) return;
+    this.io?.emit("presence_update", { userId, online, last_seen: lastSeen ?? null });
+  }
+
+  /**
+   * Send a snapshot of the given chat's member presence to a single socket
+   * (used right after joining a chat room).
+   */
+  private async emitChatPresence(chatId: string, socket: Socket) {
+    try {
+      const participants = await prisma.chatParticipant.findMany({
+        where: { chat_id: chatId },
+        select: { user_id: true },
+      });
+      const snapshot: Record<string, { online: boolean; last_seen: string | null }> = {};
+      for (const p of participants) {
+        const user = await prisma.user.findUnique({
+          where: { id: p.user_id },
+          select: { last_seen_at: true },
+        });
+        snapshot[p.user_id] = {
+          online: this.onlineUsers.has(p.user_id),
+          last_seen: user?.last_seen_at?.toISOString() ?? null,
+        };
+      }
+      socket.emit("presence_snapshot", { chatId, members: snapshot });
+    } catch (err) {
+      console.error("[Socket] presence snapshot failed", err);
+    }
   }
 
   /**
