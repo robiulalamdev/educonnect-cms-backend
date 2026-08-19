@@ -76,7 +76,7 @@ export async function getMessagesController(req: FastifyRequest, reply: FastifyR
   const { id: chatId } = req.params as { id: string };
   const query = messageQuerySchema.parse(req.query);
   const data = await getMessages(chatId, userId, query);
-  return reply.send({ success: true, data });
+  return reply.send({ success: true, ...data });
 }
 
 export async function sendMessageController(req: FastifyRequest, reply: FastifyReply) {
