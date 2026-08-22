@@ -70,8 +70,16 @@ export async function createService(teacherId: string, input: CreateServiceInput
     select: { is_approved: true, is_email_verified: true },
   });
   if (!teacher) throw new Error("NOT_FOUND");
-  if (!teacher.is_approved) throw new Error("TEACHER_NOT_APPROVED");
-  if (!teacher.is_email_verified) throw new Error("EMAIL_NOT_VERIFIED");
+  if (!teacher.is_approved) {
+    const err: any = new Error("Your teacher account is still pending approval. Please wait for the admin to verify it.");
+    err.statusCode = 403;
+    throw err;
+  }
+  if (!teacher.is_email_verified) {
+    const err: any = new Error("Please verify your email before creating a service.");
+    err.statusCode = 400;
+    throw err;
+  }
 
   // 2. Check subscription limits
   const activeServices = await prisma.service.count({
@@ -85,7 +93,9 @@ export async function createService(teacherId: string, input: CreateServiceInput
 
   const maxServices = subscription?.package?.max_services ?? 1;
   if (activeServices >= maxServices) {
-    throw new Error("SUBSCRIPTION_LIMIT_REACHED");
+    const err: any = new Error(`You've reached the service limit for your current plan (${maxServices}). Upgrade your subscription to create more services.`);
+    err.statusCode = 403;
+    throw err;
   }
 
   // Generate unique slug
@@ -173,7 +183,11 @@ export async function getServiceById(id: string) {
     where: { id },
     select: safeServiceSelect
   });
-  if (!service) throw new Error("NOT_FOUND");
+  if (!service) {
+    const err: any = new Error("Service not found");
+    err.statusCode = 404;
+    throw err;
+  }
   return service;
 }
 
@@ -212,14 +226,26 @@ export async function getServiceBySlug(slug: string) {
       }
     }
   });
-  if (!service) throw new Error("NOT_FOUND");
+  if (!service) {
+    const err: any = new Error("Service not found");
+    err.statusCode = 404;
+    throw err;
+  }
   return service;
 }
 
 export async function updateService(serviceId: string, teacherId: string, input: UpdateServiceInput) {
   const service = await prisma.service.findUnique({ where: { id: serviceId } });
-  if (!service) throw new Error("NOT_FOUND");
-  if (service.teacher_id !== teacherId) throw new Error("FORBIDDEN");
+  if (!service) {
+    const err: any = new Error("Service not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  if (service.teacher_id !== teacherId) {
+    const err: any = new Error("You can only edit your own services");
+    err.statusCode = 403;
+    throw err;
+  }
 
   const { subject_ids, level_ids, payment_methods, ...data } = input;
 

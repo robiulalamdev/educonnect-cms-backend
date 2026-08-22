@@ -3,6 +3,8 @@ import { CreateDirectChatInput, SendMessageInput, ChatQueryInput, MessageQueryIn
 import { CHAT_TYPES } from "./chat.types.js";
 import { socketManager } from "../../config/socket.js";
 import { uploadToCloudinary, type UploadInput } from "../../utils/cloudinary-upload.js";
+import { createNotification, notifyUser } from "../notification/notification.service.js";
+import { notificationService } from "../shared/notification.service.js";
 
 const safeMessageSelect = {
   id: true,
@@ -322,6 +324,47 @@ export async function sendMessage(chatId: string, senderId: string, input: SendM
   // Real-time broadcast
   socketManager.emitToRoom(`chat_${chatId}`, "new_message", payload);
 
+  // Push notifications + in-app notifications for other participants.
+  // In-app is always created; push is only sent when the recipient is offline
+  // (online users already get the realtime socket update).
+  const senderName = fullMessage?.sender?.full_name ?? "Someone";
+  const messageBody = data.body?.trim() ? data.body.trim().slice(0, 140) : (mediaUploads?.length || media_ids?.length ? "📎 Attachment" : "");
+  const otherParticipantIds = (chat?.participants ?? [])
+    .filter((p) => p.user_id !== senderId)
+    .map((p) => p.user_id);
+
+  for (const recipientId of otherParticipantIds) {
+    createNotification({
+      user_id: recipientId,
+      type: "NEW_MESSAGE",
+      title: `New message from ${senderName}`,
+      body: messageBody,
+      reference_type: "CHAT",
+      reference_id: chatId,
+      category: "message",
+    }).catch(() => {});
+    socketManager.emitToRoom(`user_${recipientId}`, "new_notification", {
+      type: "NEW_MESSAGE",
+      title: `New message from ${senderName}`,
+      body: messageBody,
+      reference_type: "CHAT",
+      reference_id: chatId,
+    });
+  }
+
+  if (messageBody) {
+    for (const recipientId of otherParticipantIds) {
+      if (!socketManager.isOnline(recipientId)) {
+        notificationService.sendToUser(recipientId, `New message from ${senderName}`, messageBody, {
+          type: "CHAT",
+          chat_id: chatId,
+          message_id: message.id,
+          sender_id: senderId,
+        }).catch(() => {});
+      }
+    }
+  }
+
   // Notify mentioned users (via their personal room) so they can highlight it
   for (const u of mentionedUsers) {
     if (u.id === senderId) continue;
@@ -329,9 +372,19 @@ export async function sendMessage(chatId: string, senderId: string, input: SendM
       chatId,
       messageId: message.id,
       mentioned_by: senderId,
-      mentioned_by_name: fullMessage?.sender?.full_name ?? "Someone",
-      body: data.body ?? "",
+      mentioned_by_name: senderName,
+      body: messageBody,
     });
+    notifyUser({
+      user_id: u.id,
+      type: "NEW_MESSAGE",
+      title: `${senderName} mentioned you`,
+      body: messageBody,
+      reference_type: "CHAT",
+      reference_id: chatId,
+      category: "message",
+      push_data: { type: "CHAT", chat_id: chatId, message_id: message.id, sender_id: senderId, mention: "1" },
+    }).catch(() => {});
   }
 
   return payload;

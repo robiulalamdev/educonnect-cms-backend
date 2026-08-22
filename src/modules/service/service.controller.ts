@@ -14,10 +14,26 @@ import {
   getServicesDropdown 
 } from "./service.service.js";
 import { SERVICE_TYPES } from "./service.types.js";
+import { parseMultipart } from "../../utils/parse-multipart.js";
+
+// Coerce multipart string fields to numbers before Zod validation
+function coerceServiceFields(fields: Record<string, any>) {
+  const numericKeys = [
+    "latitude", "longitude", "joining_fee", "monthly_fee", "per_session_fee",
+  ];
+  const out = { ...fields };
+  for (const key of numericKeys) {
+    if (out[key] === undefined || out[key] === null) continue;
+    const n = Number(out[key]);
+    if (!Number.isNaN(n)) out[key] = n;
+  }
+  return out;
+}
 
 export async function createServiceController(req: FastifyRequest, reply: FastifyReply) {
   const teacherId = req.user!.userId;
-  const input = createServiceSchema.parse(req.body);
+  const parsed = await parseMultipart(req, { allowedFileFields: {} });
+  const input = createServiceSchema.parse(coerceServiceFields(parsed.fields));
   const data = await createService(teacherId, input);
   return reply.send({ success: true, message: "Service created successfully", data });
 }
@@ -63,7 +79,8 @@ export async function getServiceBySlugController(req: FastifyRequest, reply: Fas
 export async function updateServiceController(req: FastifyRequest, reply: FastifyReply) {
   const teacherId = req.user!.userId;
   const { id } = req.params as { id: string };
-  const input = updateServiceSchema.parse(req.body);
+  const parsed = await parseMultipart(req, { allowedFileFields: {} });
+  const input = updateServiceSchema.parse(coerceServiceFields(parsed.fields));
   const data = await updateService(id, teacherId, input);
   return reply.send({ success: true, message: "Service updated successfully", data });
 }
