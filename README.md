@@ -1,4 +1,4 @@
-# EduConnect - Backend (Coaching Management System)
+# EduConnect - (Coaching Management System)
 
 > **Version:** 2.0.0 | **Node:** 20+ | **TypeScript** | **Fastify** | **Prisma** | **PostgreSQL**
 
@@ -6,12 +6,12 @@ A production-ready backend API for **EduConnect** — a coaching management plat
 
 ## 🌐 Live URLs
 
-| Environment | URL |
-|-------------|-----|
-| Production API | https://educonnect-cms-api.vercel.app |
-| Swagger / API Docs | https://educonnect-cms-api.vercel.app/docs |
-| Health Check | https://educonnect-cms-api.vercel.app/health |
-| Readiness Probe | https://educonnect-cms-api.vercel.app/ready |
+| Environment        | URL                                          |
+| ------------------ | -------------------------------------------- |
+| Production API     | https://educonnect-cms-api.vercel.app        |
+| Swagger / API Docs | https://educonnect-cms-api.vercel.app/docs   |
+| Health Check       | https://educonnect-cms-api.vercel.app/health |
+| Readiness Probe    | https://educonnect-cms-api.vercel.app/ready  |
 
 > The frontend is deployed at **https://educonnect-cms.vercel.app** (user app) with the admin panel at `/admin`.
 
@@ -37,11 +37,13 @@ A production-ready backend API for **EduConnect** — a coaching management plat
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node.js 20+
 - PostgreSQL 16+
 - Redis 7+ (for rate limiting, caching)
 
 ### Installation
+
 ```bash
 # Clone and navigate
 cd backend
@@ -68,6 +70,7 @@ npm run dev
 Server runs at `http://localhost:9000`
 
 ### Docker (Recommended)
+
 ```bash
 # From project root
 docker-compose up -d
@@ -77,12 +80,12 @@ docker-compose up -d
 
 All demo accounts share the password `123456` and are seeded via `npm run prisma:seed`:
 
-| Role | Email | Login Endpoint |
-|------|-------|----------------|
+| Role        | Email               | Login Endpoint             |
+| ----------- | ------------------- | -------------------------- |
 | Super Admin | `superadmin@ec.com` | `/api/v1/admin/auth/login` |
-| Teacher | `teacher@ec.com` | `/api/v1/auth/login` |
-| Student | `student@ec.com` | `/api/v1/auth/login` |
-| Guardian | `guardian@ec.com` | `/api/v1/auth/login` |
+| Teacher     | `teacher@ec.com`    | `/api/v1/auth/login`       |
+| Student     | `student@ec.com`    | `/api/v1/auth/login`       |
+| Guardian    | `guardian@ec.com`   | `/api/v1/auth/login`       |
 
 > **Tip:** Log in through the frontend at **https://educonnect-cms.vercel.app** (Super Admin uses the `/admin` portal).
 
@@ -90,21 +93,21 @@ All demo accounts share the password `123456` and are seeded via `npm run prisma
 
 ## 📦 Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Runtime | Node.js 20+ |
-| Framework | Fastify 5.x |
-| Language | TypeScript 5.x |
-| Database | PostgreSQL 16 + Prisma ORM |
-| Auth | JWE (jose) + HttpOnly Cookies |
-| Real-time | Socket.io |
-| File Upload | Cloudinary |
-| Validation | Zod 4.x |
-| Logging | Pino |
-| Rate Limit | @fastify/rate-limit |
-| Email | Nodemailer (Gmail SMTP) |
-| Push Notifications | Firebase Admin (FCM) |
-| Location | Google Places API + Geocoding |
+| Layer              | Technology                    |
+| ------------------ | ----------------------------- |
+| Runtime            | Node.js 20+                   |
+| Framework          | Fastify 5.x                   |
+| Language           | TypeScript 5.x                |
+| Database           | PostgreSQL 16 + Prisma ORM    |
+| Auth               | JWE (jose) + HttpOnly Cookies |
+| Real-time          | Socket.io                     |
+| File Upload        | Cloudinary                    |
+| Validation         | Zod 4.x                       |
+| Logging            | Pino                          |
+| Rate Limit         | @fastify/rate-limit           |
+| Email              | Nodemailer (Gmail SMTP)       |
+| Push Notifications | Firebase Admin (FCM)          |
+| Location           | Google Places API + Geocoding |
 
 ---
 
@@ -185,11 +188,13 @@ backend/
 ## 🔐 Authentication
 
 ### Token Strategy
+
 - **Access Token**: 1 day expiry, JWE encrypted, HttpOnly cookie
 - **Refresh Token**: 30 days expiry, JWE encrypted, HttpOnly cookie
 - **Admin Tokens**: Separate secrets, separate cookies
 
 ### Auth Flow
+
 ```
 1. Register → Email OTP sent
 2. Verify OTP → Account created (unverified)
@@ -199,11 +204,12 @@ backend/
 ```
 
 ### Roles
-| Role | Registration | Approval |
-|------|-------------|----------|
-| Teacher | Email OTP | Admin manual approval |
-| Student | Email OTP | Auto-approved |
-| Guardian | Email OTP | Auto-separated from users |
+
+| Role     | Registration | Approval                  |
+| -------- | ------------ | ------------------------- |
+| Teacher  | Email OTP    | Admin manual approval     |
+| Student  | Email OTP    | Auto-approved             |
+| Guardian | Email OTP    | Auto-separated from users |
 
 ---
 
@@ -225,6 +231,7 @@ Division → District → Area/Upazila
 ## 📚 API Documentation
 
 ### Base URL
+
 ```
 Development: http://localhost:9000/api/v1
 Production:  https://educonnect-cms-api.vercel.app/api/v1
@@ -232,44 +239,46 @@ Production:  https://educonnect-cms-api.vercel.app/api/v1
 
 ### Endpoints by Module
 
-| Module | Prefix | Description |
-|--------|--------|-------------|
-| Auth | `/auth` | Register, login, logout, refresh, verify, reset |
-| User | `/user` | Profile, avatar, settings |
-| Teacher | `/teacher` | Profile, verification, dashboard |
-| Student | `/student` | Profile, enrollments, progress |
-| Guardian | `/guardian` | Children linking, monitoring |
-| Services | `/services` | CRUD, search, categories |
-| Batches | `/batches` | CRUD, schedules, overrides |
-| Enrollments | `/enrollments` | Join, payments, status |
-| Attendance | `/attendance` | Mark, reports, calendar |
-| Tasks | `/tasks` | Create, submit, grade |
-| Daily Notes | `/daily-notes` | CRUD, visibility |
-| Announcements | `/announcements` | CRUD, batch-wide |
-| Posts | `/posts` | Seek/offer, feed, moderate |
-| Comments | `/posts` | Nested comments |
-| Likes | `/posts` | Like/unlike |
-| Follows | `/follows` | Follow/unfollow |
-| Blocks | `/blocks` | Block/unblock |
-| Reviews | `/reviews` | Rate teachers/services |
-| Stories | `/stories` | 24h ephemeral content |
-| Chat | `/chats` | Direct + group, real-time |
-| Notifications | `/notifications` | In-app + email + push |
-| Devices | `/devices` | FCM token management |
-| Notification Prefs | `/notification-preferences` | Granular settings |
-| Subscriptions | `/subscription` | Packages, billing |
-| Payments | `/payment` | Stripe/bKash/Nagad |
-| Statistics | `/statistics` | Analytics dashboards |
-| Education | `/education` | Levels, subjects, categories |
-| Admin | `/admin` | Panel: users, teachers, content, analytics |
+| Module             | Prefix                      | Description                                     |
+| ------------------ | --------------------------- | ----------------------------------------------- |
+| Auth               | `/auth`                     | Register, login, logout, refresh, verify, reset |
+| User               | `/user`                     | Profile, avatar, settings                       |
+| Teacher            | `/teacher`                  | Profile, verification, dashboard                |
+| Student            | `/student`                  | Profile, enrollments, progress                  |
+| Guardian           | `/guardian`                 | Children linking, monitoring                    |
+| Services           | `/services`                 | CRUD, search, categories                        |
+| Batches            | `/batches`                  | CRUD, schedules, overrides                      |
+| Enrollments        | `/enrollments`              | Join, payments, status                          |
+| Attendance         | `/attendance`               | Mark, reports, calendar                         |
+| Tasks              | `/tasks`                    | Create, submit, grade                           |
+| Daily Notes        | `/daily-notes`              | CRUD, visibility                                |
+| Announcements      | `/announcements`            | CRUD, batch-wide                                |
+| Posts              | `/posts`                    | Seek/offer, feed, moderate                      |
+| Comments           | `/posts`                    | Nested comments                                 |
+| Likes              | `/posts`                    | Like/unlike                                     |
+| Follows            | `/follows`                  | Follow/unfollow                                 |
+| Blocks             | `/blocks`                   | Block/unblock                                   |
+| Reviews            | `/reviews`                  | Rate teachers/services                          |
+| Stories            | `/stories`                  | 24h ephemeral content                           |
+| Chat               | `/chats`                    | Direct + group, real-time                       |
+| Notifications      | `/notifications`            | In-app + email + push                           |
+| Devices            | `/devices`                  | FCM token management                            |
+| Notification Prefs | `/notification-preferences` | Granular settings                               |
+| Subscriptions      | `/subscription`             | Packages, billing                               |
+| Payments           | `/payment`                  | Stripe/bKash/Nagad                              |
+| Statistics         | `/statistics`               | Analytics dashboards                            |
+| Education          | `/education`                | Levels, subjects, categories                    |
+| Admin              | `/admin`                    | Panel: users, teachers, content, analytics      |
 
 ### Health Checks
+
 ```
 GET /health        # Liveness probe
 GET /ready         # Readiness probe (DB, Redis)
 ```
 
 ### Swagger UI
+
 ```
 Development: http://localhost:9000/docs
 Production:  https://educonnect-cms-api.vercel.app/docs
@@ -280,6 +289,7 @@ Production:  https://educonnect-cms-api.vercel.app/docs
 ## 🗄 Database Schema
 
 ### Core Models
+
 - **User** - Base user with roles (TEACHER, STUDENT, GUARDIAN, ADMIN)
 - **TeacherProfile** - Qualifications, experience, verification status
 - **StudentProfile** - Education level, interests, guardian links
@@ -298,6 +308,7 @@ Production:  https://educonnect-cms-api.vercel.app/docs
 - **Review** - Teacher/service ratings
 
 ### Key Conventions
+
 - All IDs: `String @id @default(cuid())`
 - All fields: `snake_case`
 - Soft deletes: `deletedAt DateTime?` on all user content
@@ -309,19 +320,20 @@ Production:  https://educonnect-cms-api.vercel.app/docs
 ## 🔧 Configuration
 
 ### Required Environment Variables
+
 See `.env.example` for all variables. Key categories:
 
-| Category | Variables |
-|----------|-----------|
-| App | `NODE_ENV`, `PORT`, `DATABASE_URL`, `CORS_ORIGINS` |
-| Auth (User) | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_EXPIRES`, `JWT_REFRESH_EXPIRES` |
-| Cookies (User) | `COOKIE_SECRET`, `COOKIE_ACCESS_NAME`, `COOKIE_REFRESH_NAME`, `COOKIE_ACCESS_MAX_AGE`, `COOKIE_REFRESH_MAX_AGE` |
-| Auth (Admin) | `ADMIN_JWT_ACCESS_SECRET`, `ADMIN_JWT_REFRESH_SECRET`, `ADMIN_JWT_ACCESS_EXPIRES`, `ADMIN_JWT_REFRESH_EXPIRES` |
+| Category        | Variables                                                                                                              |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| App             | `NODE_ENV`, `PORT`, `DATABASE_URL`, `CORS_ORIGINS`                                                                     |
+| Auth (User)     | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_EXPIRES`, `JWT_REFRESH_EXPIRES`                                 |
+| Cookies (User)  | `COOKIE_SECRET`, `COOKIE_ACCESS_NAME`, `COOKIE_REFRESH_NAME`, `COOKIE_ACCESS_MAX_AGE`, `COOKIE_REFRESH_MAX_AGE`        |
+| Auth (Admin)    | `ADMIN_JWT_ACCESS_SECRET`, `ADMIN_JWT_REFRESH_SECRET`, `ADMIN_JWT_ACCESS_EXPIRES`, `ADMIN_JWT_REFRESH_EXPIRES`         |
 | Cookies (Admin) | `ADMIN_COOKIE_ACCESS_NAME`, `ADMIN_COOKIE_REFRESH_NAME`, `ADMIN_COOKIE_ACCESS_MAX_AGE`, `ADMIN_COOKIE_REFRESH_MAX_AGE` |
-| Cloudinary | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_ACCOUNT_ID` |
-| Email | `GMAIL_USER`, `GMAIL_APP_PASS` |
-| Firebase | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` |
-| Frontend URLs | `FRONTEND_URL`, `ADMIN_FRONTEND_URL` |
+| Cloudinary      | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_ACCOUNT_ID`                        |
+| Email           | `GMAIL_USER`, `GMAIL_APP_PASS`                                                                                         |
+| Firebase        | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`                                                 |
+| Frontend URLs   | `FRONTEND_URL`, `ADMIN_FRONTEND_URL`                                                                                   |
 
 ---
 
@@ -339,6 +351,7 @@ npm run test:watch
 ```
 
 ### Test Setup
+
 - **Framework**: Vitest
 - **Database**: Test PostgreSQL instance (Docker)
 - **Mocking**: MSW for external APIs
@@ -347,30 +360,32 @@ npm run test:watch
 
 ## 📝 Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start dev server with hot reload |
-| `npm run build` | Compile TypeScript to `dist/` |
-| `npm run start` | Run production build |
-| `npm run prisma:generate` | Generate Prisma Client |
-| `npm run prisma:migrate` | Run migrations (dev) |
-| `npm run prisma:migrate deploy` | Run migrations (prod) |
-| `npm run prisma:studio` | Open Prisma Studio |
-| `npm run prisma:seed` | Seed the database with demo accounts & sample data |
-| `npm run create:super-admin` | Create initial admin user |
-| `npm run lint` | Run ESLint |
-| `npm test` | Run tests |
+| Command                         | Description                                        |
+| ------------------------------- | -------------------------------------------------- |
+| `npm run dev`                   | Start dev server with hot reload                   |
+| `npm run build`                 | Compile TypeScript to `dist/`                      |
+| `npm run start`                 | Run production build                               |
+| `npm run prisma:generate`       | Generate Prisma Client                             |
+| `npm run prisma:migrate`        | Run migrations (dev)                               |
+| `npm run prisma:migrate deploy` | Run migrations (prod)                              |
+| `npm run prisma:studio`         | Open Prisma Studio                                 |
+| `npm run prisma:seed`           | Seed the database with demo accounts & sample data |
+| `npm run create:super-admin`    | Create initial admin user                          |
+| `npm run lint`                  | Run ESLint                                         |
+| `npm test`                      | Run tests                                          |
 
 ---
 
 ## 🐳 Docker
 
 ### Build Image
+
 ```bash
 docker build -t cms-backend ./backend
 ```
 
 ### Run Container
+
 ```bash
 docker run -d \
   --name cms-backend \
@@ -380,6 +395,7 @@ docker run -d \
 ```
 
 ### Multi-service (with DB + Redis)
+
 ```bash
 # From project root
 docker-compose up -d
@@ -401,6 +417,7 @@ This repo includes a **container deployment** setup for Vercel:
 **Live:** https://educonnect-cms-api.vercel.app
 
 **Deploy steps:**
+
 1. Connect the repo to Vercel (or run `vercel --prod` from the `backend/` folder)
 2. Set all environment variables from `.env.example` (do **not** push `.env`)
 3. Set `NODE_ENV=production` and **leave `PORT` unset** — the container listens on port 80
@@ -410,16 +427,19 @@ This repo includes a **container deployment** setup for Vercel:
 > string, which breaks numeric validation.
 
 ### Database Migrations
+
 ```bash
 # On deployment
 npm run prisma:migrate deploy
 ```
 
 ### Health Checks
+
 - **Liveness**: `GET /health` - Returns 200 if process alive
 - **Readiness**: `GET /ready` - Returns 200 if DB + Redis connected
 
 ### Reverse Proxy (Nginx)
+
 ```nginx
 location /api/ {
     proxy_pass http://localhost:9000;
@@ -465,6 +485,7 @@ location /api/ {
 5. Open Pull Request
 
 ### Code Style
+
 - ESLint + Prettier configured
 - TypeScript strict mode
 - Conventional commits

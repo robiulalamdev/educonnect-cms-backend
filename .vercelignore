@@ -1,0 +1,13 @@
+node_modules
+dist
+logs
+*.log
+.git
+.github
+.env
+.env.*
+!.env.example
+seed.ts
+README.md
+Dockerfile
+.dockerignore
